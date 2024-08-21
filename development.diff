@@ -1,0 +1,14 @@
+diff -r /home/yajat/Desktop/aosp12_r11/development/cmds/monkey/src/com/android/commands/monkey/MonkeyMotionEvent.java /home/yajat/Desktop/H618-Android12-Src/development/cmds/monkey/src/com/android/commands/monkey/MonkeyMotionEvent.java
+191a192,195
+>         ///AW CODE:[fix]#59476 monkey exit because a security exception is thrown.  2021.11.8
+>         } catch (SecurityException e) {
+>             return MonkeyEvent.INJECT_FAIL;
+>         ///AW:add end
+diff -r /home/yajat/Desktop/aosp12_r11/development/cmds/monkey/src/com/android/commands/monkey/MonkeySourceRandom.java /home/yajat/Desktop/H618-Android12-Src/development/cmds/monkey/src/com/android/commands/monkey/MonkeySourceRandom.java
+446a447,451
+>                     ///AW CODE:[fix]#64169 don't send tv power keyevent when run monkey test.
+>                     && lastKey != KeyEvent.KEYCODE_TV_POWER
+>                     && lastKey != KeyEvent.KEYCODE_STB_POWER
+>                     && lastKey != KeyEvent.KEYCODE_AVR_POWER
+>                     ///AW:add end
+Only in /home/yajat/Desktop/aosp12_r11/development/: .git

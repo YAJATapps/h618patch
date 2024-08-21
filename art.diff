@@ -1,0 +1,883 @@
+diff -r /home/yajat/Desktop/aosp12_r11/art/compiler/optimizing/load_store_elimination.h /home/yajat/Desktop/H618-Android12-Src/art/compiler/optimizing/load_store_elimination.h
+30c30
+<   static constexpr bool kEnablePartialLSE = true;
+---
+>   static constexpr bool kEnablePartialLSE = false;
+Only in /home/yajat/Desktop/aosp12_r11/art/: .git
+diff -r /home/yajat/Desktop/aosp12_r11/art/libdexfile/Android.bp /home/yajat/Desktop/H618-Android12-Src/art/libdexfile/Android.bp
+164a165,173
+>     visibility: [
+>         // Allow libdexfile_support users to list this as a runtime_libs
+>         // dependency - see comment for libdexfile_support. It shouldn't be used
+>         // for any other purpose.
+>         "//external/perfetto",
+>         "//system/core/debuggerd",
+>         "//system/extras/simpleperf",
+>         "//system/unwinding/libunwindstack",
+>     ],
+371a381,388
+> //
+> // IMPORTANT: When adding a static_libs dependency on this library, please
+> // remember to also add a corresponding
+> //
+> //     runtime_libs: ["libdexfile"],
+> //
+> // That is necessary since Soong doesn't propagate dependencies transitively for
+> // static libraries (b/169779783).
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/gc/heap.cc /home/yajat/Desktop/H618-Android12-Src/art/runtime/gc/heap.cc
+3665a3666,3667
+>   HeapGrowthLimit = true;//AW_code;jiangbin
+> 
+3688a3691,3692
+>   HeapGrowthLimit = false;//AW_code;jiangbin
+> 
+3761a3766,3791
+> 
+>     /*AW_code;reset launchmode needgc flag if need;jiangbin;191127*/
+> 
+>        VLOG(heap)<<"ConcurrentGC "<< GetHeapLaunchMode() << " "<<NeedJavaGCTask << " "<<NeedNativeGCTask;
+>       if(cause ==  kGcCauseBackground) {
+>          if(GetHeapLaunchMode()) {
+>             SetNeedJavaGCTask(true);
+>             return;
+>          } else if(NeedJavaGCTask) {
+>             NeedJavaGCTask = false;
+>          }
+>       }
+> #if 0  // reseve one version only for low_ram device
+>       if(cause ==  kGcCauseForNativeAlloc) {
+>          if(GetHeapLaunchMode()) {
+>             SetNeedNativeGCTask(true);
+>             return;
+>          } else if(NeedNativeGCTask) {
+>             NeedNativeGCTask = false;
+>          }
+> 
+>       }
+> #endif
+>     /*end*/
+> 
+> 
+3988c4018,4027
+<       bool requested =
+---
+> 
+> #if 0  // becase unknown-error ,reseve one version only for low_ram device
+>       /*AW_code;for performance check in launchmode;jiangbin;191026*/
+>       if(!CheckCanConcurrentGC(GetBytesAllocated())) {
+>         SetNeedNativeGCTask(true);
+>         return;
+>       }
+>       /*end*/
+> #endif
+>         bool requested =
+4444a4484,4502
+> 
+>     /*AW_code;trigger a launchmode cc-gc if need;jiangbin;210819*/
+>     VLOG(heap)<<"TriggerPostForkCCGcTask "<< heap->GetHeapLaunchMode() << " "<<heap->NeedJavaGCTask << " "<<heap->NeedNativeGCTask;
+> 
+>     if((!heap->GetHeapLaunchMode()) && (heap->NeedJavaGCTask || heap->NeedNativeGCTask)) {
+>         if(heap->NeedJavaGCTask) {
+>             heap->RequestConcurrentGC(self, kGcCauseBackground, false,heap->GetCurrentGcNum());
+>         }
+> 
+> #if 1  // maybe some unknown-error ,reseve one version only for low_ram device
+>         if(heap->NeedNativeGCTask) {
+>             heap->RequestConcurrentGC(self, kGcCauseForNativeAlloc, /*force_full=*/false,heap->GetCurrentGcNum());
+>         }
+>         return;
+> #endif
+>     }
+>    /*end*/
+> 
+> 
+4497a4556,4585
+> /*AW_code;set launchmode interface for app_start_performance;jiangbin;191018*/
+> void Heap::SetHeapLaunchMode(bool islaunchmode) {
+>     if(IsLaunchMode != islaunchmode) {
+>         IsLaunchMode = islaunchmode;
+>         if(IsLaunchMode) { //launch-mode
+> 
+>             if(HeapGrowthLimit) {
+>                 NeedRestGrowthLimit = true;
+>                 ClearGrowthLimit();
+>             }
+>             VLOG(heap)<< "Heap::SetHeapLaunchMode open  allocated= " << GetBytesAllocated() << " islimit= "<< HeapGrowthLimit
+>             << " gc_start= "<<concurrent_start_bytes_ << " limit= "<< growth_limit_  ;
+> 
+>         } else {          //normal-mode
+>             if(NeedRestGrowthLimit) {
+>                 ClampGrowthLimit();
+>                 NeedRestGrowthLimit = false;
+>             }
+> 
+>             VLOG(heap)<< "Heap::SetHeapLaunchMode close allocate=  " << GetBytesAllocated()
+>                 << " "<<NeedJavaGCTask<< " "<< NeedNativeGCTask ;
+>             if(NeedJavaGCTask || NeedNativeGCTask) {
+>                 GetTaskProcessor()->AddTask( Thread::Current(), new TriggerPostForkCCGcTask(NanoTime()
+>                 + MsToNs(10000/*5 seconds to CC-GC*//*kPostForkMaxHeapDurationMS*/)));
+>             }
+>     }
+>   }
+> }
+> 
+> 
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/gc/heap.h /home/yajat/Desktop/H618-Android12-Src/art/runtime/gc/heap.h
+779a780,802
+> 
+>   /*AW_code;add launch-mode control;jiangbin;191018*/
+>   bool IsLaunchMode = false;
+>   bool HeapGrowthLimit;
+>   bool NeedRestGrowthLimit = false;
+>   bool NeedJavaGCTask = false;
+>   bool NeedNativeGCTask = false;
+> 
+>   void SetNeedJavaGCTask(bool needGC) {
+>    NeedJavaGCTask = needGC;
+>   }
+>   void SetNeedNativeGCTask(bool needGC) {
+>    NeedNativeGCTask = needGC;
+>   }
+>  void SetHeapLaunchMode(bool islaunchmode);
+> 
+>   bool GetHeapLaunchMode() {
+>     return IsLaunchMode;
+>   }
+>   /*end*/
+> 
+> 
+> 
+1032a1056,1059
+> 
+> 
+>   ALWAYS_INLINE bool CheckCanConcurrentGC(size_t new_num_bytes_allocated);//jiangbin
+> 
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/gc/heap-inl.h /home/yajat/Desktop/H618-Android12-Src/art/runtime/gc/heap-inl.h
+143,144c143,158
+<       obj = TryToAllocate<kInstrumented, false>(self, allocator, byte_count, &bytes_allocated,
+<                                                 &usable_size, &bytes_tl_bulk_allocated);
+---
+> 
+>     /*AW_code;check launchmode for allocate for performance;jiangbin;191026*/
+>     //bool growlimit = false;
+>     if(GetHeapLaunchMode()) {
+>         obj = TryToAllocate<kInstrumented, true>(self, allocator, byte_count, &bytes_allocated,
+>                                               &usable_size, &bytes_tl_bulk_allocated);
+>     } else {
+>         obj = TryToAllocate<kInstrumented, false>(self, allocator, byte_count, &bytes_allocated,
+>                                               &usable_size, &bytes_tl_bulk_allocated);
+>     }
+>        /*end*/
+> 
+> 
+> 
+> 
+> 
+433a448,468
+> /*AW_code;add launchmode check allocated-byte by limit-threshold;jiangbin;191026*/
+> #define GROWTH_LIMIT_UTILIZA 0.6f
+> inline bool Heap::CheckCanConcurrentGC(size_t new_num_bytes_allocated) {
+> 
+>     if(GetHeapLaunchMode()) {
+>         if( new_num_bytes_allocated >=  (growth_limit_ * GetTargetHeapUtilization() * GROWTH_LIMIT_UTILIZA)) {
+>             VLOG(gc) << " Heap::CheckCanConcurrentGCinLaunchMode need skip, growth*util= "
+>             << growth_limit_ * GetTargetHeapUtilization() * GROWTH_LIMIT_UTILIZA;
+>             SetHeapLaunchMode(false);
+>             return true;
+>         } else {
+>             return false;
+>         }
+>     }
+>     return true;
+> }
+> /*end*/
+> 
+> 
+> 
+> 
+457c492,493
+<     if (AllocatorMayHaveConcurrentGC(allocator_type) && IsGcConcurrent()) {
+---
+>     if (AllocatorMayHaveConcurrentGC(allocator_type) && IsGcConcurrent()
+>         && !(GetHeapLaunchMode() && grow)) {/*AW_code;for performance do not gc-to-alloc;jiangbin;191026*/
+474c510,519
+<   // For a Java allocation, we only check whether the number of Java allocated bytes excceeds a
+---
+> 
+>     /*AW_code;for performance check in launchmode;jiangbin;191026*/
+>      if(!CheckCanConcurrentGC(new_num_bytes_allocated)) {
+>          SetNeedJavaGCTask(true);
+>          return false;
+>      }
+>     /*end*/
+> 
+> 
+>    // For a Java allocation, we only check whether the number of Java allocated bytes excceeds a
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/jit/jit_memory_region.cc /home/yajat/Desktop/H618-Android12-Src/art/runtime/jit/jit_memory_region.cc
+22a23
+> #include <log/log.h>
+66a68,74
+> 
+>   // The memory mappings we are going to create.
+>   MemMap data_pages;
+>   MemMap exec_pages;
+>   MemMap non_exec_pages;
+>   MemMap writable_data_pages;
+> 
+67a76
+>     android_errorWriteLog(0x534e4554, "200284993");  // Report to SafetyNet.
+94a104
+>   // Map name specific for android_os_Debug.cpp accounting.
+99,103d108
+<   // Map name specific for android_os_Debug.cpp accounting.
+<   // Map in low 4gb to simplify accessing root tables for x86_64.
+<   // We could do PC-relative addressing to avoid this problem, but that
+<   // would require reserving code and data area before submitting, which
+<   // means more windows for the code memory to be RWX.
+105d109
+<   MemMap data_pages;
+133a138
+> 
+134a140,194
+> 
+>     // Create the writable mappings now, so that in case of the zygote, we can
+>     // prevent any future writable mappings through sealing.
+>     if (exec_capacity > 0) {
+>       // For dual view, create the secondary view of code memory used for updating code. This view
+>       // is never executable.
+>       std::string name = exec_cache_name + "-rw";
+>       non_exec_pages = MemMap::MapFile(exec_capacity,
+>                                        kIsDebugBuild ? kProtR : kProtRW,
+>                                        base_flags,
+>                                        mem_fd,
+>                                        /* start= */ data_capacity,
+>                                        /* low_4GB= */ false,
+>                                        name.c_str(),
+>                                        &error_str);
+>       if (!non_exec_pages.IsValid()) {
+>         // This is unexpected.
+>         *error_msg = "Failed to map non-executable view of JIT code cache";
+>         return false;
+>       }
+>       // Create a dual view of the data cache.
+>       name = data_cache_name + "-rw";
+>       writable_data_pages = MemMap::MapFile(data_capacity,
+>                                             kProtRW,
+>                                             base_flags,
+>                                             mem_fd,
+>                                             /* start= */ 0,
+>                                             /* low_4GB= */ false,
+>                                             name.c_str(),
+>                                             &error_str);
+>       if (!writable_data_pages.IsValid()) {
+>         std::ostringstream oss;
+>         oss << "Failed to create dual data view: " << error_str;
+>         *error_msg = oss.str();
+>         return false;
+>       }
+>       if (writable_data_pages.MadviseDontFork() != 0) {
+>         *error_msg = "Failed to MadviseDontFork the writable data view";
+>         return false;
+>       }
+>       if (non_exec_pages.MadviseDontFork() != 0) {
+>         *error_msg = "Failed to MadviseDontFork the writable code view";
+>         return false;
+>       }
+>       // Now that we have created the writable and executable mappings, prevent creating any new
+>       // ones.
+>       if (is_zygote && !ProtectZygoteMemory(mem_fd.get(), error_msg)) {
+>         return false;
+>       }
+>     }
+> 
+>     // Map in low 4gb to simplify accessing root tables for x86_64.
+>     // We could do PC-relative addressing to avoid this problem, but that
+>     // would require reserving code and data area before submitting, which
+>     // means more windows for the code memory to be RWX.
+175,177d234
+<   MemMap exec_pages;
+<   MemMap non_exec_pages;
+<   MemMap writable_data_pages;
+196,248d252
+< 
+<     if (mem_fd.get() >= 0) {
+<       // For dual view, create the secondary view of code memory used for updating code. This view
+<       // is never executable.
+<       std::string name = exec_cache_name + "-rw";
+<       non_exec_pages = MemMap::MapFile(exec_capacity,
+<                                        kIsDebugBuild ? kProtR : kProtRW,
+<                                        base_flags,
+<                                        mem_fd,
+<                                        /* start= */ data_capacity,
+<                                        /* low_4GB= */ false,
+<                                        name.c_str(),
+<                                        &error_str);
+<       if (!non_exec_pages.IsValid()) {
+<         static const char* kFailedNxView = "Failed to map non-executable view of JIT code cache";
+<         if (rwx_memory_allowed) {
+<           // Log and continue as single view JIT (requires RWX memory).
+<           VLOG(jit) << kFailedNxView;
+<         } else {
+<           *error_msg = kFailedNxView;
+<           return false;
+<         }
+<       }
+<       // Create a dual view of the data cache.
+<       name = data_cache_name + "-rw";
+<       writable_data_pages = MemMap::MapFile(data_capacity,
+<                                             kProtRW,
+<                                             base_flags,
+<                                             mem_fd,
+<                                             /* start= */ 0,
+<                                             /* low_4GB= */ false,
+<                                             name.c_str(),
+<                                             &error_str);
+<       if (!writable_data_pages.IsValid()) {
+<         std::ostringstream oss;
+<         oss << "Failed to create dual data view: " << error_str;
+<         *error_msg = oss.str();
+<         return false;
+<       }
+<       if (writable_data_pages.MadviseDontFork() != 0) {
+<         *error_msg = "Failed to madvise dont fork the writable data view";
+<         return false;
+<       }
+<       if (non_exec_pages.MadviseDontFork() != 0) {
+<         *error_msg = "Failed to madvise dont fork the writable code view";
+<         return false;
+<       }
+<       // Now that we have created the writable and executable mappings, prevent creating any new
+<       // ones.
+<       if (is_zygote && !ProtectZygoteMemory(mem_fd.get(), error_msg)) {
+<         return false;
+<       }
+<     }
+555c559
+<     palette_status_t status = PaletteAshmemSetProtRegion(fd, PROT_READ);
+---
+>     palette_status_t status = PaletteAshmemSetProtRegion(fd, PROT_READ | PROT_EXEC);
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/jit/jit_memory_region_test.cc /home/yajat/Desktop/H618-Android12-Src/art/runtime/jit/jit_memory_region_test.cc
+494a495,550
+> 
+>   // Test that a readable mapping created befire sealing future writes, can be
+>   // changed into a writable mapping.
+>   void TestVmMayWriteBefore() {
+>     // Zygote JIT memory only works on kernels that don't segfault on flush.
+>     TEST_DISABLED_FOR_KERNELS_WITH_CACHE_SEGFAULT();
+>     std::string error_msg;
+>     size_t size = kPageSize;
+>     int32_t* addr = nullptr;
+>     {
+>       android::base::unique_fd fd(JitMemoryRegion::CreateZygoteMemory(size, &error_msg));
+>       CHECK_NE(fd.get(), -1);
+> 
+>       // Create a shared readable mapping.
+>       addr = reinterpret_cast<int32_t*>(
+>           mmap(nullptr, kPageSize, PROT_READ, MAP_SHARED, fd.get(), 0));
+>       CHECK(addr != nullptr);
+>       CHECK_NE(addr, MAP_FAILED);
+> 
+>       // Protect the memory.
+>       bool res = JitMemoryRegion::ProtectZygoteMemory(fd.get(), &error_msg);
+>       CHECK(res);
+>     }
+>     // At this point, the fd has been dropped, but the memory mappings are still
+>     // there.
+>     int res = mprotect(addr, kPageSize, PROT_WRITE);
+>     CHECK_EQ(res, 0);
+>   }
+> 
+>   // Test that we cannot create a writable mapping after sealing future writes.
+>   void TestVmMayWriteAfter() {
+>     // Zygote JIT memory only works on kernels that don't segfault on flush.
+>     TEST_DISABLED_FOR_KERNELS_WITH_CACHE_SEGFAULT();
+>     std::string error_msg;
+>     size_t size = kPageSize;
+>     int32_t* addr = nullptr;
+>     {
+>       android::base::unique_fd fd(JitMemoryRegion::CreateZygoteMemory(size, &error_msg));
+>       CHECK_NE(fd.get(), -1);
+> 
+>       // Protect the memory.
+>       bool res = JitMemoryRegion::ProtectZygoteMemory(fd.get(), &error_msg);
+>       CHECK(res);
+> 
+>       // Create a shared readable mapping.
+>       addr = reinterpret_cast<int32_t*>(
+>           mmap(nullptr, kPageSize, PROT_READ, MAP_SHARED, fd.get(), 0));
+>       CHECK(addr != nullptr);
+>       CHECK_NE(addr, MAP_FAILED);
+>     }
+>     // At this point, the fd has been dropped, but the memory mappings are still
+>     // there.
+>     int res = mprotect(addr, kPageSize, PROT_WRITE);
+>     CHECK_EQ(res, -1);
+>     CHECK_EQ(errno, EACCES);
+>   }
+510a567,574
+> }
+> 
+> TEST_F(TestZygoteMemory, TestVmMayWriteBefore) {
+>   TestVmMayWriteBefore();
+> }
+> 
+> TEST_F(TestZygoteMemory, TestVmMayWriteAfter) {
+>   TestVmMayWriteAfter();
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/jit/profile_saver.cc /home/yajat/Desktop/H618-Android12-Src/art/runtime/jit/profile_saver.cc
+45a46,57
+> 
+> /*AW_code;pgo-immediately;jiangbin;200917*/
+> #include <sys/file.h>
+> #include <sys/wait.h>
+> #include "android-base/file.h"
+> #include "base/scoped_flock.h"
+> 
+> #include <android-base/properties.h>
+> /*end*/
+> 
+> 
+> 
+52a65,66
+> bool ProfileSaver::pgo_immediately_enable = false;
+> 
+156a171,192
+>   /*AW_CODE; save startup hot-profile ahead ;jiangbin;200917*/
+>   if(std::string(android::base::GetProperty("persist.sys.droidboost.disable", "0")) == "0") {
+>      pgo_immediately_enable = true;
+>      VLOG(profiler) << "droidboost enable";
+>   } else {
+>      pgo_immediately_enable = false;
+>      VLOG(profiler) << "droidboost disable";
+>   }
+>   if(pgo_immediately_enable && options_.GetWaitForJitNotificationsToSave()) {
+>     uint16_t number_of_new_start_methods = 0;
+>     bool start_profile_saved_to_disk = ProcessProfilingInfo(true,true, &number_of_new_start_methods,true);
+>     if(start_profile_saved_to_disk && (number_of_new_start_methods !=0)) {
+> 
+>         //reserve
+>        VLOG(profiler) << "startup-save profile " ;
+> 
+>     }
+>   }
+> /*end*/
+> 
+> 
+> 
+219c255
+<         &number_of_new_methods);
+---
+>         &number_of_new_methods,false);
+433c469,470
+<       const bool is_low_ram = runtime->GetHeap()->IsLowMemoryMode();
+---
+>       const bool is_low_ram = /*pgo_immediately_enable? false:*/runtime->GetHeap()->IsLowMemoryMode();//AW_code;pgo-immediately;jiangbin
+> 
+826c863
+<         /*out*/uint16_t* number_of_new_methods) {
+---
+>         /*out*/uint16_t* number_of_new_methods,bool startup/*AW_code;extend*/) {
+862a900,942
+> 
+>     /*AW_CODE; startup hot-profile check for launch-bdo ;jiangbin;200917*/
+>     if(pgo_immediately_enable && startup){
+>       bool needclear = false;
+> 
+>       MutexLock mu(Thread::Current(), *Locks::profiler_lock_);
+>       auto info_it = profile_cache_.find(filename);
+>       if (info_it  != profile_cache_.end()) {
+>           ProfileCompilationInfo* cached_info = info_it->second;
+>          // ProfileCompilationInfo newinfo = *(profile_cache_tmp->second);
+>           if((cached_info->GetNumberOfMethods() > options_.GetMinMethodsToSave())
+>             || (cached_info->GetNumberOfResolvedClasses() > options_.GetMinClassesToSave())) {
+>               needclear = true;
+>               VLOG(profiler)  << "startup new need clear preinfo";
+>           }
+> 
+>       }
+> 
+> 
+>       if(needclear) {
+>           std::string error;
+>           int flags = O_WRONLY | O_NOFOLLOW | O_CLOEXEC;
+>           ScopedFlock profile_file = LockedFile::Open(filename.c_str(), flags,
+>                                               /*block*/false, &error);
+>           if (profile_file.get() != nullptr) {
+>               // We need to clear the data because we don't support appending to the profiles yet.
+>               if (!profile_file->Erase()) {
+>               LOG(WARNING) << "startup-Could not erase profile file: " << filename;
+>             }
+>               VLOG(profiler) << "startup-erase " << filename;
+>           } else {
+>               LOG(WARNING) << "startup-Couldn't lock the profile file " << filename << ": " << error;
+>           }
+> 
+>       }
+>    }
+>     /*end*/
+> 
+> 
+> 
+> 
+> 
+> 
+1124c1204
+<       /*number_of_new_methods=*/ nullptr);
+---
+>       /*number_of_new_methods=*/ nullptr,false);
+1246c1326
+<         /*number_of_new_methods=*/ nullptr);
+---
+>         /*number_of_new_methods=*/ nullptr,false);
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/jit/profile_saver.h /home/yajat/Desktop/H618-Android12-Src/art/runtime/jit/profile_saver.h
+86c86
+<         /*out*/uint16_t* number_of_new_methods)
+---
+>         /*out*/uint16_t* number_of_new_methods,bool startup)
+89a90,91
+> 
+> 
+124a127,128
+> 
+>   static bool pgo_immediately_enable;//AW_code;droidboost enable control;jiangbin;200917
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/jit/profile_saver_options.h /home/yajat/Desktop/H618-Android12-Src/art/runtime/jit/profile_saver_options.h
+30c30
+<   static constexpr uint32_t kHotStartupMethodSamplesLowRam = 256;
+---
+>   static constexpr uint32_t kHotStartupMethodSamplesLowRam = 128;//256;
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/native/dalvik_system_VMRuntime.cc /home/yajat/Desktop/H618-Android12-Src/art/runtime/native/dalvik_system_VMRuntime.cc
+362a363,376
+> static void VMRuntime_setVerifierEnabled(JNIEnv*, jobject, jboolean enabled) {
+>   Runtime* runtime = Runtime::Current();
+>   if (enabled) {
+>     runtime->EnableVerifier();
+>   } else {
+>     runtime->DisableVerifier();
+>   }
+> }
+> 
+> static jboolean VMRuntime_getVerifierEnabled(JNIEnv*, jobject) {
+>   Runtime* runtime = Runtime::Current();
+>   return runtime->IsVerificationEnabled() ? JNI_TRUE : JNI_FALSE;
+> }
+> 
+448a463,472
+> /*AW_code;add launch-mode for vmruntime;jiangbin;191018*/
+> static void VMRuntime_setHeapLaunchMode(JNIEnv* env ATTRIBUTE_UNUSED,
+>                                                  jclass klass ATTRIBUTE_UNUSED,
+>                                                  jboolean islaunchmode) {
+>   Runtime::Current()->GetHeap()->SetHeapLaunchMode(islaunchmode);
+> }
+> /*end*/
+> 
+> 
+> 
+544a569,570
+>   NATIVE_METHOD(VMRuntime, setVerifierEnabled, "(Z)V"),
+>   NATIVE_METHOD(VMRuntime, getVerifierEnabled, "()Z"),
+556a583,586
+>   /*AW_code;add launch-mode for vmruntime;jiangbin;191018*/
+>   NATIVE_METHOD(VMRuntime, setHeapLaunchMode, "(Z)V"),
+>   /*end*/
+> 
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/oat.h /home/yajat/Desktop/H618-Android12-Src/art/runtime/oat.h
+35,36c35,36
+<   // Last oat version changed reason: Apex versions in key/value store.
+<   static constexpr std::array<uint8_t, 4> kOatVersion { { '1', '9', '5', '\0' } };
+---
+>   // Last oat version changed reason: Disable partial LSE b/197818595.
+>   static constexpr std::array<uint8_t, 4> kOatVersion { { '1', '9', '9', '\0' } };
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/runtime.cc /home/yajat/Desktop/H618-Android12-Src/art/runtime/runtime.cc
+2958a2959,2964
+> 
+> void Runtime::EnableVerifier() {
+>   verify_ = verifier::VerifyMode::kEnable;
+> }
+> 
+> 
+diff -r /home/yajat/Desktop/aosp12_r11/art/runtime/runtime.h /home/yajat/Desktop/H618-Android12-Src/art/runtime/runtime.h
+595a596
+>   void EnableVerifier();
+diff -r /home/yajat/Desktop/aosp12_r11/art/test/530-checker-lse/src/Main.java /home/yajat/Desktop/H618-Android12-Src/art/test/530-checker-lse/src/Main.java
+3967,4209d3966
+<   /// CHECK-START: int Main.$noinline$testPartialEscape2(TestClass, boolean) load_store_elimination (before)
+<   /// CHECK-DAG:     ParameterValue
+<   /// CHECK-DAG:     NewInstance
+<   /// CHECK-DAG:     InvokeStaticOrDirect
+<   /// CHECK-DAG:     InvokeStaticOrDirect
+<   /// CHECK-DAG:     InvokeStaticOrDirect
+<   /// CHECK-DAG:     InstanceFieldSet
+<   /// CHECK-DAG:     InstanceFieldSet
+<   /// CHECK-DAG:     InstanceFieldSet
+<   /// CHECK-DAG:     InstanceFieldGet
+<   /// CHECK-DAG:     InstanceFieldGet
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape2(TestClass, boolean) load_store_elimination (after)
+<   /// CHECK-DAG:     ParameterValue
+<   /// CHECK-DAG:     NewInstance
+<   /// CHECK-DAG:     Phi
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape2(TestClass, boolean) load_store_elimination (after)
+<   /// CHECK:         InvokeStaticOrDirect
+<   /// CHECK:         InvokeStaticOrDirect
+<   /// CHECK:         InvokeStaticOrDirect
+<   //
+<   /// CHECK-NOT:     InvokeStaticOrDirect
+< 
+<   /// CHECK-START: int Main.$noinline$testPartialEscape2(TestClass, boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:false
+<   /// CHECK-NOT:     InstanceFieldSet predicated:false
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape2(TestClass, boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:true
+<   /// CHECK-NOT:     InstanceFieldSet predicated:true
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape2(TestClass, boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldGet
+<   //
+<   /// CHECK-NOT:     InstanceFieldGet
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape2(TestClass, boolean) load_store_elimination (after)
+<   /// CHECK:         PredicatedInstanceFieldGet
+<   //
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   private static int $noinline$testPartialEscape2(TestClass obj, boolean escape) {
+<     TestClass i = new SubTestClass();
+<     if ($noinline$getBoolean(escape)) {
+<       i.next = obj;
+<       $noinline$Escape(i);
+<     } else {
+<       i.next = obj;
+<     }
+<     $noinline$clobberObservables();
+<     // Predicated-get
+<     TestClass res = i.next;
+<     // Predicated-set
+<     i.next = null;
+<     return res.i;
+<   }
+< 
+<   /// CHECK-START: float Main.$noinline$testPartialEscape3_float(boolean) load_store_elimination (before)
+<   /// CHECK-NOT:     Phi
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   //
+<   /// CHECK-START: float Main.$noinline$testPartialEscape3_float(boolean) load_store_elimination (after)
+<   /// CHECK:         Phi
+<   /// CHECK:         Phi
+<   /// CHECK-NOT:     Phi
+<   //
+<   /// CHECK-START: float Main.$noinline$testPartialEscape3_float(boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:true
+<   /// CHECK-NOT:     InstanceFieldSet predicated:true
+<   //
+<   /// CHECK-START: float Main.$noinline$testPartialEscape3_float(boolean) load_store_elimination (after)
+<   /// CHECK:         PredicatedInstanceFieldGet
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   private static float $noinline$testPartialEscape3_float(boolean escape) {
+<     TestClass4 tc = new TestClass4();
+<     if ($noinline$getBoolean(escape)) {
+<       $noinline$Escape4(tc);
+<     } else {
+<       tc.floatField -= 1f;
+<     }
+<     // Partial escape
+<     $noinline$clobberObservables();
+<     // Predicated set
+<     tc.floatField *= 10;
+<     // Predicated get
+<     return tc.floatField;
+<   }
+< 
+<   /// CHECK-START: double Main.$noinline$testPartialEscape3_double(boolean) load_store_elimination (before)
+<   /// CHECK-NOT:     Phi
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   //
+<   /// CHECK-START: double Main.$noinline$testPartialEscape3_double(boolean) load_store_elimination (after)
+<   /// CHECK:         Phi
+<   /// CHECK:         Phi
+<   /// CHECK-NOT:     Phi
+<   //
+<   /// CHECK-START: double Main.$noinline$testPartialEscape3_double(boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:true
+<   /// CHECK-NOT:     InstanceFieldSet predicated:true
+<   //
+<   /// CHECK-START: double Main.$noinline$testPartialEscape3_double(boolean) load_store_elimination (after)
+<   /// CHECK:         PredicatedInstanceFieldGet
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   private static double $noinline$testPartialEscape3_double(boolean escape) {
+<     TestClass4 tc = new TestClass4();
+<     if ($noinline$getBoolean(escape)) {
+<       $noinline$Escape4(tc);
+<     } else {
+<       tc.doubleField -= 1d;
+<     }
+<     // Partial escape
+<     $noinline$clobberObservables();
+<     // Predicated set
+<     tc.doubleField *= 10;
+<     // Predicated get
+<     return tc.doubleField;
+<   }
+< 
+<   /// CHECK-START: short Main.$noinline$testPartialEscape3_short(boolean) load_store_elimination (before)
+<   /// CHECK-NOT:     Phi
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   //
+<   /// CHECK-START: short Main.$noinline$testPartialEscape3_short(boolean) load_store_elimination (after)
+<   /// CHECK:         Phi
+<   /// CHECK:         Phi
+<   /// CHECK-NOT:     Phi
+<   //
+<   /// CHECK-START: short Main.$noinline$testPartialEscape3_short(boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:true
+<   /// CHECK-NOT:     InstanceFieldSet predicated:true
+<   //
+<   /// CHECK-START: short Main.$noinline$testPartialEscape3_short(boolean) load_store_elimination (after)
+<   /// CHECK:         PredicatedInstanceFieldGet
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   private static short $noinline$testPartialEscape3_short(boolean escape) {
+<     TestClass4 tc = new TestClass4();
+<     if ($noinline$getBoolean(escape)) {
+<       $noinline$Escape4(tc);
+<     } else {
+<       tc.shortField -= 1;
+<     }
+<     // Partial escape
+<     $noinline$clobberObservables();
+<     // Predicated set
+<     tc.shortField *= 10;
+<     // Predicated get
+<     return tc.shortField;
+<   }
+< 
+<   /// CHECK-START: byte Main.$noinline$testPartialEscape3_byte(boolean) load_store_elimination (before)
+<   /// CHECK-NOT:     Phi
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   //
+<   /// CHECK-START: byte Main.$noinline$testPartialEscape3_byte(boolean) load_store_elimination (after)
+<   /// CHECK:         Phi
+<   /// CHECK:         Phi
+<   /// CHECK-NOT:     Phi
+<   //
+<   /// CHECK-START: byte Main.$noinline$testPartialEscape3_byte(boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:true
+<   /// CHECK-NOT:     InstanceFieldSet predicated:true
+<   //
+<   /// CHECK-START: byte Main.$noinline$testPartialEscape3_byte(boolean) load_store_elimination (after)
+<   /// CHECK:         PredicatedInstanceFieldGet
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   private static byte $noinline$testPartialEscape3_byte(boolean escape) {
+<     TestClass4 tc = new TestClass4();
+<     if ($noinline$getBoolean(escape)) {
+<       $noinline$Escape4(tc);
+<     } else {
+<       tc.byteField -= 1;
+<     }
+<     // Partial escape
+<     $noinline$clobberObservables();
+<     // Predicated set
+<     tc.byteField *= 10;
+<     // Predicated get
+<     return tc.byteField;
+<   }
+< 
+<   /// CHECK-START: int Main.$noinline$testPartialEscape3_int(boolean) load_store_elimination (before)
+<   /// CHECK-NOT:     Phi
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape3_int(boolean) load_store_elimination (after)
+<   /// CHECK:         Phi
+<   /// CHECK:         Phi
+<   /// CHECK-NOT:     Phi
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape3_int(boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:true
+<   /// CHECK-NOT:     InstanceFieldSet predicated:true
+<   //
+<   /// CHECK-START: int Main.$noinline$testPartialEscape3_int(boolean) load_store_elimination (after)
+<   /// CHECK:         PredicatedInstanceFieldGet
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   private static int $noinline$testPartialEscape3_int(boolean escape) {
+<     TestClass4 tc = new TestClass4();
+<     if ($noinline$getBoolean(escape)) {
+<       $noinline$Escape4(tc);
+<     } else {
+<       tc.intField -= 1;
+<     }
+<     // Partial escape
+<     $noinline$clobberObservables();
+<     // Predicated set
+<     tc.intField *= 10;
+<     // Predicated get
+<     return tc.intField;
+<   }
+< 
+<   /// CHECK-START: long Main.$noinline$testPartialEscape3_long(boolean) load_store_elimination (before)
+<   /// CHECK-NOT:     Phi
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   //
+<   /// CHECK-START: long Main.$noinline$testPartialEscape3_long(boolean) load_store_elimination (after)
+<   /// CHECK:         Phi
+<   /// CHECK:         Phi
+<   /// CHECK-NOT:     Phi
+<   //
+<   /// CHECK-START: long Main.$noinline$testPartialEscape3_long(boolean) load_store_elimination (after)
+<   /// CHECK:         InstanceFieldSet predicated:true
+<   /// CHECK-NOT:     InstanceFieldSet predicated:true
+<   //
+<   /// CHECK-START: long Main.$noinline$testPartialEscape3_long(boolean) load_store_elimination (after)
+<   /// CHECK:         PredicatedInstanceFieldGet
+<   /// CHECK-NOT:     PredicatedInstanceFieldGet
+<   private static long $noinline$testPartialEscape3_long(boolean escape) {
+<     TestClass4 tc = new TestClass4();
+<     if ($noinline$getBoolean(escape)) {
+<       $noinline$Escape4(tc);
+<     } else {
+<       tc.longField -= 1;
+<     }
+<     // Partial escape
+<     $noinline$clobberObservables();
+<     // Predicated set
+<     tc.longField *= 10;
+<     // Predicated get
+<     return tc.longField;
+<   }
+< 
+4616,4629d4372
+<     assertIntEquals($noinline$testPartialEscape2(new TestClass(), true), 1);
+<     assertIntEquals($noinline$testPartialEscape2(new TestClass(), false), 0);
+<     assertDoubleEquals($noinline$testPartialEscape3_double(true), -20d);
+<     assertDoubleEquals($noinline$testPartialEscape3_double(false), -40d);
+<     assertFloatEquals($noinline$testPartialEscape3_float(true), -20f);
+<     assertFloatEquals($noinline$testPartialEscape3_float(false), -40f);
+<     assertIntEquals($noinline$testPartialEscape3_int(true), -20);
+<     assertIntEquals($noinline$testPartialEscape3_int(false), -40);
+<     assertIntEquals($noinline$testPartialEscape3_byte(true), -20);
+<     assertIntEquals($noinline$testPartialEscape3_byte(false), -40);
+<     assertIntEquals($noinline$testPartialEscape3_short(true), -20);
+<     assertIntEquals($noinline$testPartialEscape3_short(false), -40);
+<     assertLongEquals($noinline$testPartialEscape3_long(true), -20);
+<     assertLongEquals($noinline$testPartialEscape3_long(false), -40);
+diff -r /home/yajat/Desktop/aosp12_r11/art/test/639-checker-code-sinking/src/Main.java /home/yajat/Desktop/H618-Android12-Src/art/test/639-checker-code-sinking/src/Main.java
+113,114d112
+<   /// CHECK:                      If
+<   /// CHECK:                      begin_block
+123a122,123
+>   /// CHECK: <<Error:l\d+>>       LoadClass class_name:java.lang.Error
+>   /// CHECK-NOT:                  begin_block
+130,131d129
+<   /// CHECK: <<Error:l\d+>>       LoadClass class_name:java.lang.Error
+<   /// CHECK-NOT:                  begin_block
+328,330d325
+<   /// CHECK:                      If
+<   /// CHECK:                      begin_block
+<   // Moved to throw block by partial-LSE and DCE.
+332,333d326
+<   // These were moved by partial LSE and order of sets is not observable and are
+<   // in an arbitrary order.
+344a338,339
+>   /// CHECK: <<Error:l\d+>>       LoadClass class_name:java.lang.Error
+>   /// CHECK-NOT:                  begin_block
+350,351d344
+<   /// CHECK-NOT:                  begin_block
+<   /// CHECK: <<Error:l\d+>>       LoadClass class_name:java.lang.Error
+Only in /home/yajat/Desktop/H618-Android12-Src/art/test: 828-partial-lse

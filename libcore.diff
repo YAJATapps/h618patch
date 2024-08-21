@@ -1,0 +1,50 @@
+diff -r /home/yajat/Desktop/aosp12_r11/libcore/api/module-lib-current.txt /home/yajat/Desktop/H618-Android12-Src/libcore/api/module-lib-current.txt
+317a318
+>     method public static boolean getVerifierEnabled();
+337a339
+>     method public void setHeapLaunchMode(boolean);
+344a347
+>     method public static void setVerifierEnabled(boolean);
+Only in /home/yajat/Desktop/aosp12_r11/libcore/: .git
+diff -r /home/yajat/Desktop/aosp12_r11/libcore/libart/src/main/java/dalvik/system/VMRuntime.java /home/yajat/Desktop/H618-Android12-Src/libcore/libart/src/main/java/dalvik/system/VMRuntime.java
+810a811,821
+>      * AW_code;add art-interface;jiangbin;210819
+>      * @hide
+>      */
+>     @SystemApi(client = MODULE_LIBRARIES)
+>     @libcore.api.CorePlatformApi(status = libcore.api.CorePlatformApi.Status.STABLE)
+>     public native void setHeapLaunchMode(boolean islaunchmode);
+>     /*end*/
+> 
+> 
+> 
+>     /**
+830a842,853
+> 
+> 
+>     /** @hide */
+>     @SystemApi(client = MODULE_LIBRARIES)
+>     @libcore.api.CorePlatformApi(status = libcore.api.CorePlatformApi.Status.STABLE)
+>     public static native void setVerifierEnabled(boolean enabled);
+> 
+>     /** @hide */
+>     @SystemApi(client = MODULE_LIBRARIES)
+>     @libcore.api.CorePlatformApi(status = libcore.api.CorePlatformApi.Status.STABLE)
+>     public static native boolean getVerifierEnabled();
+> 
+diff -r /home/yajat/Desktop/aosp12_r11/libcore/mmodules/core_platform_api/api/legacy_platform/current.txt /home/yajat/Desktop/H618-Android12-Src/libcore/mmodules/core_platform_api/api/legacy_platform/current.txt
+317a318
+>     method public static boolean getVerifierEnabled();
+338a340
+>     method public void setHeapLaunchMode(boolean);
+344a347
+>     method public static void setVerifierEnabled(boolean);
+diff -r /home/yajat/Desktop/aosp12_r11/libcore/mmodules/core_platform_api/api/stable_platform/current.txt /home/yajat/Desktop/H618-Android12-Src/libcore/mmodules/core_platform_api/api/stable_platform/current.txt
+338a339
+>     method public void setHeapLaunchMode(boolean);
+diff -r /home/yajat/Desktop/aosp12_r11/libcore/ojluni/src/main/native/UNIXProcess_md.c /home/yajat/Desktop/H618-Android12-Src/libcore/ojluni/src/main/native/UNIXProcess_md.c
+122,123c122
+<   #if defined(__linux__) && !__has_feature(address_sanitizer) && \
+<       !__has_feature(hwaddress_sanitizer)
+---
+>   #if defined(__linux__) && !__has_feature(address_sanitizer)

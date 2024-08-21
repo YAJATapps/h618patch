@@ -1,0 +1,522 @@
+Only in /home/yajat/Desktop/aosp12_r11/bootable/libbootloader: .git
+Only in /home/yajat/Desktop/aosp12_r11/bootable/recovery: .git
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/install/fuse_install.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/install/fuse_install.cpp
+32a33
+> #include <android-base/file.h>
+40a42
+> #include "otautil/sysutil.h"
+123a126,182
+> // Returns the selected block path, or an empty string.
+> static std::string BrowseBlock(const std::string& path, Device* device, RecoveryUI* ui) {
+>   std::unique_ptr<DIR, decltype(&closedir)> d(opendir(path.c_str()), closedir);
+>   if (!d) {
+>     PLOG(ERROR) << "error opening " << path;
+>     return "";
+>   }
+>   bool isnand = access((path + "/nand0").c_str(), F_OK) == 0;
+> 
+>   std::vector<std::string> blocks;
+>   std::vector<std::string> entries{ "../" };  // "../" is always the first entry.
+> 
+>   dirent* de;
+>   while ((de = readdir(d.get())) != nullptr) {
+>     std::string name(de->d_name);
+> 
+>     if (de->d_type == DT_BLK
+>         && !android::base::StartsWithIgnoreCase(name, isnand ? "nand0" : "mmcblk0")
+>         && !android::base::StartsWithIgnoreCase(name, "dm-")
+>         && !android::base::StartsWithIgnoreCase(name, "loop")
+>         && !android::base::StartsWithIgnoreCase(name, "ram")
+>         && !android::base::StartsWithIgnoreCase(name, "zram")) {
+>       blocks.push_back(name);
+>     }
+>   }
+> 
+>   std::sort(blocks.begin(), blocks.end(), std::greater());
+> 
+>   // Append dirs to the entries list.
+>   entries.insert(entries.end(), blocks.begin(), blocks.end());
+> 
+>   std::vector<std::string> headers{ "Choose a block device to mount:", path };
+> 
+>   size_t chosen_item = 0;
+>   while (true) {
+>     chosen_item = ui->ShowMenu(
+>         headers, entries, chosen_item, true,
+>         std::bind(&Device::HandleMenuKey, device, std::placeholders::_1, std::placeholders::_2));
+> 
+>     // Return if WaitKey() was interrupted.
+>     if (chosen_item == static_cast<size_t>(RecoveryUI::KeyError::INTERRUPTED)) {
+>       return "";
+>     }
+> 
+>     const std::string& item = entries[chosen_item];
+>     if (chosen_item == 0) {
+>       // Go up but continue browsing (if the caller is BrowseDirectory).
+>       return "";
+>     }
+> 
+>     std::string new_path = path + "/" + item;
+>     return new_path;
+>   }
+> 
+>   // Unreachable.
+> }
+> 
+206a266,337
+> int SupportNtfs(const std::string& block_device) {
+>   int status;
+>   pid_t pid = fork();
+> 
+>   if (pid == -1) {
+>     LOG(ERROR) << "Failed to fork child process";
+>     return -1;
+>   }
+> 
+>   if (pid == 0) {
+>     std::vector<std::string> ntfs_commands = {
+>       "/system/bin/ntfs-3g",
+>       "-o",
+>       "uid=0,gid=0,fmask=0177,dmask=077,big_writes,async,noatime",
+>       block_device,
+>       SDCARD_ROOT,
+>     };
+>     auto exec_args = StringVectorToNullTerminatedArray(ntfs_commands);
+>     execv(exec_args[0], exec_args.data());
+>     LOG(ERROR) << "exec in SupportNtfs";
+>     _exit(EXIT_FAILURE);
+>   }
+> 
+>   if (waitpid(pid, &status, 0) == -1) {
+>     LOG(ERROR) << "waitpid in SupportNtfs";
+>     return -errno;
+>   }
+> 
+>   if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+>     LOG(ERROR) << "Error exit from the fuse process: " << WEXITSTATUS(status);
+>     return -1;
+>   }
+> 
+>   return 0;
+> }
+> 
+> int SupportExfat(const std::string& block_device) {
+>   int status;
+>   pid_t pid = fork();
+> 
+>   if (pid == -1) {
+>     LOG(ERROR) << "Failed to fork child process";
+>     return -1;
+>   }
+> 
+>   if (pid == 0) {
+>     std::vector<std::string> exfat_commands = {
+>       "/system/bin/mount.exfat",
+>       "-o",
+>       "uid=0,gid=0,fmask=0177,dmask=077",
+>       block_device,
+>       SDCARD_ROOT,
+>     };
+>     auto exec_args = StringVectorToNullTerminatedArray(exfat_commands);
+>     execv(exec_args[0], exec_args.data());
+>     LOG(ERROR) << "exec in SupportExfat";
+>     _exit(EXIT_FAILURE);
+>   }
+> 
+>   if (waitpid(pid, &status, 0) == -1) {
+>     LOG(ERROR) << "waitpid in SupportExfat";
+>     return -errno;
+>   }
+> 
+>   if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+>     LOG(ERROR) << "Error exit from the fuse process: " << WEXITSTATUS(status);
+>     return -1;
+>   }
+> 
+>   return 0;
+> }
+> 
+209,210c340,348
+<   if (ensure_path_mounted(SDCARD_ROOT) != 0) {
+<     LOG(ERROR) << "\n-- Couldn't mount " << SDCARD_ROOT << ".\n";
+---
+>   std::string blk_device = BrowseBlock("/dev/block", device, ui);
+>   if (blk_device.empty()) {
+>     LOG(ERROR) << "\n-- No block device selected.\n";
+>     return INSTALL_ERROR;
+>   }
+>   ui->Print("\n-- Select block device %s.\n", blk_device.c_str());
+>   std::string filesystems;
+>   if (!android::base::ReadFileToString("/proc/filesystems", &filesystems)) {
+>     LOG(ERROR) << "Error reading file: /proc/filesystems";
+211a350,374
+>   }
+> 
+>   static const std::vector<std::string> supported_fs{"ext4", "vfat", "f2fs", "ntfs", "exfat"};
+>   int ret = -1;
+>   for (auto fs_type : supported_fs) {
+>     if (filesystems.find("\t" + fs_type + "\n") == std::string::npos) {
+>       LOG(INFO) << "unknown fs_type " << fs_type;
+>       continue;
+>     }
+>     ret = mount(blk_device.c_str(), SDCARD_ROOT,
+>         fs_type.c_str(), 0, "");
+>     if (ret == 0) {
+>       ui->Print("Mount type=%s success.\n", fs_type.c_str());
+>       break;
+>     }
+>     ui->Print("Mount type=%s ret=%d errno=%d %s.\n", fs_type.c_str(), ret, errno, strerror(errno));
+>   }
+>   if (ret != 0) {
+>     if (SupportNtfs(blk_device) != 0) {
+>       LOG(ERROR) << "\n-- Mount Ntfs " << blk_device << " to " << SDCARD_ROOT << " failed. try Exfat\n";
+>       if (SupportExfat(blk_device) != 0) {
+>         LOG(ERROR) << "\n-- Mount Exfat " << blk_device << " to " << SDCARD_ROOT << " failed.\n";
+>         return INSTALL_ERROR;
+>       }
+>     }
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/install/include/install/wipe_data.h /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/install/include/install/wipe_data.h
+30a31,33
+> 
+> // Returns true on success.
+> bool WipeReserve0(RecoveryUI* ui, const std::function<bool()>& confirm);
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/install/wipe_data.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/install/wipe_data.cpp
+35a36,41
+> #include <errno.h>
+> #include "otautil/sysutil.h"
+> #include <sys/types.h>
+> #include <sys/wait.h>
+> #include <sys/mount.h>
+> 
+38a45
+> constexpr const char* RESERVE0_ROOT = "/dev/block/by-name/Reserve0";
+82a90,139
+> }
+> 
+> static int exec_cmd(const std::vector<std::string>& args) {
+>   CHECK(!args.empty());
+>   auto argv = StringVectorToNullTerminatedArray(args);
+> 
+>   pid_t child;
+>   if ((child = fork()) == 0) {
+>     execv(argv[0], argv.data());
+>     _exit(EXIT_FAILURE);
+>   }
+> 
+>   int status;
+>   waitpid(child, &status, 0);
+>   if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+>     printf("aw_tag %s failed with status %d\n ",argv[0], WEXITSTATUS(status));
+>   }
+>   return WEXITSTATUS(status);
+> }
+> 
+> static int ensure_umount_Reserve0(){
+>   int ret = umount("/Reserve0");
+>   if (ret < 0) {
+>     printf("aw_tag Failed to umount %s ,errorno = %s\n",RESERVE0_ROOT,strerror(errno));
+>   }
+>   return ret;
+> }
+> 
+> bool WipeReserve0(RecoveryUI* ui, const std::function<bool()>& confirm_func) {
+>   ui->Print("aw_tag start WipeReserve0.\n");
+>   if (confirm_func && !confirm_func()) {
+>     return false;
+>   }
+> 
+>   errno = 0;
+>   if (access("/system/bin/newfs_msdos", X_OK)) {
+>     ui->Print("aw_tag open newfs_msdos errorno = %s\n", strerror(errno));
+>     return false;
+>   }
+> 
+>   ensure_umount_Reserve0();
+> 
+>   std::vector<std::string> vfat_args = {
+>     "/system/bin/newfs_msdos", "-F", "16", "-c" , "4", RESERVE0_ROOT
+>   };
+>   if (exec_cmd(vfat_args) != 0) {
+>     ui->Print("aw_tag format %s failed\n",RESERVE0_ROOT);
+>     return false;
+>   }
+>   return true;
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/minui/events.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/minui/events.cpp
+31a32
+> #include <string>
+32a34
+> #include <android-base/strings.h>
+33a36
+> #include <android-base/logging.h>
+121,122c124,125
+<     pevent->name[pevent->len] = '\0';
+<     if (strncmp(pevent->name, "event", 5)) {
+---
+>     std::string event_name(pevent->name, pevent->len);
+>     if (!android::base::StartsWith(event_name, "event")) {
+126c129
+<     android::base::unique_fd dfd(openat(dirfd(dir.get()), pevent->name, O_RDONLY));
+---
+>     android::base::unique_fd dfd(openat(dirfd(dir.get()), event_name.c_str(), O_RDONLY));
+144a148,149
+>   ev_set_callback(input_cb);
+> 
+235a241,310
+> void ev_set_callback(ev_callback cb) {
+>   input_cb_save = cb;
+> }
+> 
+> int ev_create_inotify()  {
+>   if ((ifd = inotify_init()) < 0) {
+>     PLOG(ERROR) << "inotify_init failed";
+>     return -1;
+>   }
+>   wfd = inotify_add_watch(ifd, "/dev/input", IN_CREATE);
+>   if (wfd < 0) {
+>     PLOG(ERROR) << "inotify_add_watch failed";
+>     return -1;
+>   }
+>   return 0;
+> }
+> 
+> int ev_listen(void) {
+>   int eventnum, length;
+>   fd_set readset;
+>   char buffer[512];
+>   int event_pos = 0;
+>   struct inotify_event *event;
+>   char ne_path[20];
+>   int new_fd;
+> 
+>   FD_ZERO(&readset);
+>   FD_SET(ifd, &readset);
+> 
+>   eventnum = select(ifd + 1, &readset, NULL, NULL, NULL);
+>   if (eventnum > 0) {
+>     if (FD_ISSET(ifd, &readset))
+>       length = read(ifd, buffer, sizeof(buffer));
+>     else {
+>       PLOG(ERROR) << "FD_ISSET failed";
+>       return -1;
+>     }
+>     while ((length >= (int)sizeof(*event)) && (event_pos < length)) {
+>       event = (struct inotify_event *)(buffer + event_pos);
+>       if (event->len) {
+>         if (event->mask & IN_CREATE) {
+>           if (strncmp(event->name, "event", 5)) {
+>             event_pos += (int)sizeof(*event) + event->len;
+>             continue;
+>           }
+>           snprintf(ne_path, sizeof(ne_path), "/dev/input/%s", event->name);
+>           PLOG(ERROR) << " ne_path = " << ne_path;
+> 
+>           new_fd = open(ne_path, O_RDONLY);
+>           if (new_fd < 0) {
+>             PLOG(ERROR) << "open failed failed :" << ne_path;
+>             return -1;
+>           }
+>           if (ev_add_fd(android::base::unique_fd(new_fd), input_cb_save)) {
+>             PLOG(ERROR) << "ev_add_fd error";
+>             return -1;
+>           }
+>           PLOG(ERROR) << "add a new device :" << ne_path;
+>         }
+> 
+>         event_pos += (int)sizeof(*event) + event->len;
+>       } else {
+>         PLOG(ERROR) << "get inotify event error";
+>       }
+>     }
+> 
+>   }
+> 
+>   return 0;
+> }
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/minui/include/minui/minui.h /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/minui/include/minui/minui.h
+29a30,31
+> #include <sys/select.h>
+> #include <sys/inotify.h>
+161a164,168
+> int ev_create_inotify(void);
+> int ev_listen(void);
+> void ev_set_callback(ev_callback cb);
+> static int ifd, wfd;
+> static ev_callback input_cb_save;
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/recovery.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/recovery.cpp
+457a458,467
+>       case Device::WIPE_RESERVE0: {
+>         save_current_log = true;
+>         std::function<bool()> confirm_func = [&device]() {
+>           return yes_no(device, "Wipe Reserve0?", "  THIS CAN NOT BE UNDONE!");
+>         };
+>         WipeReserve0(ui, ui->IsTextVisible() ? confirm_func : nullptr);
+>         if (!ui->IsTextVisible()) return Device::NO_ACTION;
+>         break;
+>       }
+> 
+611a622
+>     { "auto_wipe_reserve0", required_argument, nullptr, 0 },
+620a632
+>   int auto_wipe_reserve0 = -1;//0 means manual,1 means auto ,-1 means init
+676a689,690
+>         } else if (option == "auto_wipe_reserve0") {
+>           android::base::ParseInt(optarg,&auto_wipe_reserve0);
+717a732,735
+>   if (auto_wipe_reserve0 == 1) {
+>     WipeReserve0(ui, nullptr);
+>   }
+> 
+813a832,836
+>       status = INSTALL_ERROR;
+>     }
+>   } else if(auto_wipe_reserve0 == 0) {
+>     save_current_log = true;
+>     if (!WipeReserve0(ui, nullptr)) {
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/recovery_ui/device.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/recovery_ui/device.cpp
+36a37
+>   { "Wipe Reserve0 partition", Device::WIPE_RESERVE0 },
+90a92
+>     case BTN_MOUSE:
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/recovery_ui/include/recovery_ui/device.h /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/recovery_ui/include/recovery_ui/device.h
+65a66
+>     WIPE_RESERVE0 = 22,
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/recovery_ui/include/recovery_ui/screen_ui.h /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/recovery_ui/include/recovery_ui/screen_ui.h
+302a303
+>   void LedThreadLoop();
+394a396,398
+> 
+>   std::thread led_thread_;
+>   std::atomic<bool> led_thread_stopped_{ false };
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/recovery_ui/include/recovery_ui/ui.h /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/recovery_ui/include/recovery_ui/ui.h
+223a224
+>   const std::string touch_rotation_;
+266a268
+>   std::thread device_thread_;
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/recovery_ui/screen_ui.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/recovery_ui/screen_ui.cpp
+49a50,86
+> /// AW CODE:[fix]: fix bug that led light does not exist
+> const char* NODE_ROOT_PATH = "/sys/class/gpio_sw/normal_led/light";
+> /// AW add end
+> static int node_write(const char *path, char *buf, ssize_t size) {
+>     int fd;
+>     fd = open(path, O_WRONLY);
+>     if (fd <= 0) {
+>         LOG(ERROR) << "open " << path << " node fail";
+>         return -1;
+>     }
+>     if (write(fd, buf, size) < 0) {
+>         LOG(ERROR) << "write buffer into " << path << " node fail";
+>         return -1;
+>     }
+>     close(fd);
+>     return 0;
+> }
+> /// AW CODE:[fix]: fix bug that led light does not exist
+> static bool checkLedExist() {
+>     int fd;
+>     fd = open(NODE_ROOT_PATH, O_WRONLY);
+>     if (fd <= 0) {
+>         LOG(WARNING) << "led not exists!!";
+>         return false;
+>     }
+>     close(fd);
+>     return true;
+> }
+> /// AW add end
+> static int led_set(int val) {
+>     char buf[20];
+>     sprintf(buf, "%d\n", val);
+>     if (node_write(NODE_ROOT_PATH, buf, strlen(buf))) {
+>         return -1;
+>     }
+>     return 0;
+> }
+343a381
+>   led_thread_stopped_ = true;
+815a854,868
+> void ScreenRecoveryUI::LedThreadLoop() {
+>   bool flag = false;
+>   int val = 1;
+>   while (!led_thread_stopped_) {
+>     if (!flag) {
+>       val = 1;
+>     } else {
+>       val = 0;
+>     }
+>     led_set(val);
+>     flag = !flag;
+>     usleep(static_cast<useconds_t>(0.2 * 1000000));
+>   }
+> }
+> 
+870c923
+<   text_rows_ = (ScreenHeight() - margin_height_ * 2) / char_height_;
+---
+>   text_rows_ = (ScreenHeight() - margin_height_ * 2) / (char_height_ + 4);
+952c1005,1008
+< 
+---
+>   /// AW CODE:[fix]: fix bug that led light does not exist
+>   if (checkLedExist())
+>     led_thread_ = std::thread(&ScreenRecoveryUI::LedThreadLoop, this);
+>   /// AW add end
+1200c1256,1261
+<     return std::make_unique<TextMenu>(scrollable_menu_, text_rows_, text_cols_ - 1, text_headers,
+---
+>     size_t text_rows = text_rows_ - (text_headers.size() + title_lines_.size());
+>     text_rows -= (HasThreeButtons() ? 1 : 2);
+>     if (scrollable_menu_ && text_items.size() > text_rows) {
+>         --text_rows;
+>     }
+>     return std::make_unique<TextMenu>(scrollable_menu_, text_rows, text_cols_ - 1, text_headers,
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/recovery_ui/ui.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/recovery_ui/ui.cpp
+57a58
+> constexpr const char* kDefaultTouchRotation = "ROTATION_NONE";
+69a71
+>       touch_rotation_(android::base::GetProperty("ro.recovery.input_rotation", kDefaultTouchRotation)),
+190a193,204
+>   device_thread_ = std::thread([] {
+>     if (ev_create_inotify()) {
+>       PLOG(ERROR) << "Failed to create inotify";
+> 	  return;
+>     }
+>     for (;;) {
+>       if (ev_listen()) {
+>         PLOG(ERROR) << "Failed to listen device event";
+>         return;
+>       }
+>     }
+>   });
+200c214
+<   if (abs(dy) < touch_low_threshold_ && abs(dx) > touch_high_threshold_) {
+---
+>   if (abs(dx) > abs(dy) + touch_low_threshold_ && abs(dx) > touch_high_threshold_) {
+202c216
+<   } else if (abs(dx) < touch_low_threshold_ && abs(dy) > touch_high_threshold_) {
+---
+>   } else if (abs(dy) > abs(dx) + touch_low_threshold_ && abs(dy) > touch_high_threshold_) {
+213a228,240
+>   }
+> 
+>   if (touch_rotation_ == "ROTATION_RIGHT") {
+>     SwipeDirection trans[] = {SwipeDirection::LEFT, SwipeDirection::RIGHT, SwipeDirection::UP, SwipeDirection::DOWN};
+>     direction = trans[direction];
+>   } else if (touch_rotation_ == "ROTATION_LEFT") {
+>     SwipeDirection trans[] = {SwipeDirection::RIGHT, SwipeDirection::LEFT, SwipeDirection::DOWN, SwipeDirection::UP};
+>     direction = trans[direction];
+>   } else if (touch_rotation_ == "ROTATION_DOWN") {
+>     SwipeDirection trans[] = {SwipeDirection::DOWN, SwipeDirection::UP, SwipeDirection::LEFT, SwipeDirection::RIGHT};
+>     direction = trans[direction];
+>   } else {
+>     // no trans
+diff -r /home/yajat/Desktop/aosp12_r11/bootable/recovery/update_verifier/update_verifier.cpp /home/yajat/Desktop/H618-Android12-Src/bootable/recovery/update_verifier/update_verifier.cpp
+75c75,76
+< constexpr const char* kDefaultCareMapPrefix = "/data/ota_package/care_map";
+---
+> // AW_CODE: gota: change caremap name to skip verifier
+> constexpr const char* kDefaultCareMapPrefix = "/data/ota_package/care_map1";
+376a378,381
+>       }
+>       LOG(INFO) << "set the persist.sys.boot.first to true";
+>       if (!android::base::SetProperty("persist.sys.boot.first", "true")) {
+>         LOG(WARNING) << "Failed to set the persist.sys.boot.first flag";

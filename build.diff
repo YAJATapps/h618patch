@@ -1,0 +1,105 @@
+Only in /home/yajat/Desktop/aosp12_r11/build/bazel: .git
+Only in /home/yajat/Desktop/aosp12_r11/build/blueprint: .git
+diff -r /home/yajat/Desktop/aosp12_r11/build/core/android_soong_config_vars.mk /home/yajat/Desktop/H618-Android12-Src/build/core/android_soong_config_vars.mk
+32c32
+< ifeq (,$(filter com.google.android.conscrypt,$(PRODUCT_PACKAGES)))
+---
+> ifeq (,$(findstring com.google.android.conscrypt,$(PRODUCT_PACKAGES)))
+52c52
+< else ifdef MODULE_BUILD_FROM_SOURCE
+---
+> else ifeq (true,$(MODULE_BUILD_FROM_SOURCE))
+75c75
+< else ifeq (,$(filter com.google.android.art,$(PRODUCT_PACKAGES)))
+---
+> else ifeq (,$(findstring com.google.android.art,$(PRODUCT_PACKAGES)))
+93c93
+< ifdef MODULE_BUILD_FROM_SOURCE
+---
+> ifeq (true,$(MODULE_BUILD_FROM_SOURCE))
+diff -r /home/yajat/Desktop/aosp12_r11/build/core/version_defaults.mk /home/yajat/Desktop/H618-Android12-Src/build/core/version_defaults.mk
+243c243
+<       PLATFORM_SECURITY_PATCH := 2021-11-05
+---
+>       PLATFORM_SECURITY_PATCH := 2022-02-05
+297c297
+<   BUILD_NUMBER := eng.$(shell echo $${BUILD_USERNAME:0:6}).$(shell $(DATE) +%Y%m%d.%H%M%S)
+---
+>   BUILD_NUMBER := $(shell $(DATE) +%Y%m%d.%H%M%S)
+diff -r /home/yajat/Desktop/aosp12_r11/build/make/core/android_soong_config_vars.mk /home/yajat/Desktop/H618-Android12-Src/build/make/core/android_soong_config_vars.mk
+32c32
+< ifeq (,$(filter com.google.android.conscrypt,$(PRODUCT_PACKAGES)))
+---
+> ifeq (,$(findstring com.google.android.conscrypt,$(PRODUCT_PACKAGES)))
+52c52
+< else ifdef MODULE_BUILD_FROM_SOURCE
+---
+> else ifeq (true,$(MODULE_BUILD_FROM_SOURCE))
+75c75
+< else ifeq (,$(filter com.google.android.art,$(PRODUCT_PACKAGES)))
+---
+> else ifeq (,$(findstring com.google.android.art,$(PRODUCT_PACKAGES)))
+93c93
+< ifdef MODULE_BUILD_FROM_SOURCE
+---
+> ifeq (true,$(MODULE_BUILD_FROM_SOURCE))
+diff -r /home/yajat/Desktop/aosp12_r11/build/make/core/version_defaults.mk /home/yajat/Desktop/H618-Android12-Src/build/make/core/version_defaults.mk
+243c243
+<       PLATFORM_SECURITY_PATCH := 2021-11-05
+---
+>       PLATFORM_SECURITY_PATCH := 2022-02-05
+297c297
+<   BUILD_NUMBER := eng.$(shell echo $${BUILD_USERNAME:0:6}).$(shell $(DATE) +%Y%m%d.%H%M%S)
+---
+>   BUILD_NUMBER := $(shell $(DATE) +%Y%m%d.%H%M%S)
+Only in /home/yajat/Desktop/aosp12_r11/build/make: .git
+diff -r /home/yajat/Desktop/aosp12_r11/build/make/tools/releasetools/common.py /home/yajat/Desktop/H618-Android12-Src/build/make/tools/releasetools/common.py
+57a58,60
+>     if sys.version_info.major < 3:
+>         reload(sys)
+>         sys.setdefaultencoding('utf-8')
+Only in /home/yajat/Desktop/aosp12_r11/build/pesto: .git
+diff -r /home/yajat/Desktop/aosp12_r11/build/soong/cc/linker.go /home/yajat/Desktop/H618-Android12-Src/build/soong/cc/linker.go
+96a97,99
+> 	// list of runtime libs that should not be installed along with this module.
+> 	Exclude_runtime_libs []string `android:"arch_variant"`
+> 
+119,120c122,123
+< 			// list of runtime libs that should not be installed along with
+< 			// vendor or variant of the C/C++ module.
+---
+> 			// list of runtime libs that should not be installed along with the
+> 			// vendor or product variant of the C/C++ module.
+145a149,152
+> 
+> 			// list of runtime libs that should not be installed along with the
+> 			// recovery variant of the C/C++ module.
+> 			Exclude_runtime_libs []string
+158a166,169
+> 
+> 			// list of runtime libs that should not be installed along with the
+> 			// ramdisk variant of the C/C++ module.
+> 			Exclude_runtime_libs []string
+167a179,182
+> 
+> 			// list of runtime libs that should not be installed along with the
+> 			// vendor ramdisk variant of the C/C++ module.
+> 			Exclude_runtime_libs []string
+181c196
+< 			// list of static libs that should not be used to build the apex ramdisk
+---
+> 			// list of static libs that should not be used to build the apex
+249a265
+> 	deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Exclude_runtime_libs)
+298a315
+> 		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Recovery.Exclude_runtime_libs)
+307a325
+> 		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Ramdisk.Exclude_runtime_libs)
+315a334
+> 		deps.RuntimeLibs = removeListFromList(deps.RuntimeLibs, linker.Properties.Target.Vendor_ramdisk.Exclude_runtime_libs)
+Only in /home/yajat/Desktop/aosp12_r11/build/soong: .git
+diff -r /home/yajat/Desktop/aosp12_r11/build/tools/releasetools/common.py /home/yajat/Desktop/H618-Android12-Src/build/tools/releasetools/common.py
+57a58,60
+>     if sys.version_info.major < 3:
+>         reload(sys)
+>         sys.setdefaultencoding('utf-8')

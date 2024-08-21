@@ -1,0 +1,25 @@
+Only in /home/yajat/Desktop/aosp12_r11/kernel/configs: .git
+diff -r /home/yajat/Desktop/aosp12_r11/kernel/configs/s/android-5.4/android-base.config /home/yajat/Desktop/H618-Android12-Src/kernel/configs/s/android-5.4/android-base.config
+5,6c5
+< # CONFIG_CRYPTO_MD4 is not set
+< # CONFIG_DEVMEM is not set
+---
+> CONFIG_DEVMEM=y
+11,12d9
+< # CONFIG_NFSD is not set
+< # CONFIG_NFS_FS is not set
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/4.19/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/5.10/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/5.10/x86_64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/5.4/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/5.4/x86_64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/4.19/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/4.19/x86-64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/5.10/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/5.10/x86-64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/5.4/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/5.4/x86-64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/mainline/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/common-modules/virtual-device/mainline/x86-64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/prebuilts/mainline/arm64: .git
+Only in /home/yajat/Desktop/aosp12_r11/kernel/tests: .git

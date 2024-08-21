@@ -1,0 +1,1451 @@
+Only in /home/yajat/Desktop/aosp12_r11/system/apex: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/bpf: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/bpfprogs: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/bt/bta/dm/bta_dm_act.cc /home/yajat/Desktop/H618-Android12-Src/system/bt/bta/dm/bta_dm_act.cc
+27a28,29
+> #include <base/logging.h>
+> 
+32a35
+> #include "btif/include/btif_config.h"
+44a48
+> #include "stack/btm/btm_ble_int.h"
+646a651,657
+>   }
+> 
+>   /* Check the length of the paired devices, and if 0 then reset IRK */
+>   auto paired_devices = btif_config_get_paired_devices();
+>   if (paired_devices.empty()) {
+>     LOG_INFO("Last paired device removed, resetting IRK");
+>     btm_ble_reset_id();
+Only in /home/yajat/Desktop/aosp12_r11/system/bt: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/bt/osi/src/allocator.cc /home/yajat/Desktop/H618-Android12-Src/system/bt/osi/src/allocator.cc
+58a59
+>   CHECK(static_cast<ssize_t>(size) >= 0);
+65a67
+>   CHECK(static_cast<ssize_t>(size) >= 0);
+diff -r /home/yajat/Desktop/aosp12_r11/system/bt/stack/btm/btm_sec.cc /home/yajat/Desktop/H618-Android12-Src/system/bt/stack/btm/btm_sec.cc
+101,102c101
+<                                      bool is_orig, uint32_t mx_proto_id,
+<                                      uint32_t mx_chan_id,
+---
+>                                      bool is_orig, uint16_t security_required,
+1836,1837c1835
+<                                BTM_SEC_PROTO_RFCOMM, security_required,
+<                                p_callback, p_ref_data);
+---
+>                                security_required, p_callback, p_ref_data);
+3388d3385
+<   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
+3395a3393
+>   tBTM_SEC_DEV_REC* p_dev_rec = btm_find_dev(bda);
+4644,4645c4642
+<                                      bool is_orig, uint32_t mx_proto_id,
+<                                      uint32_t mx_chan_id,
+---
+>                                      bool is_orig, uint16_t security_required,
+4657a4655
+>   p_e->rfcomm_security_requirement = security_required;
+4659,4661c4657,4658
+<   BTM_TRACE_EVENT(
+<       "%s() PSM: 0x%04x  Is_Orig: %u  mx_proto_id: %u  mx_chan_id: %u",
+<       __func__, psm, is_orig, mx_proto_id, mx_chan_id);
+---
+>   BTM_TRACE_EVENT("%s() PSM: 0x%04x  Is_Orig: %u  security_required: 0x%x",
+>                   __func__, psm, is_orig, security_required);
+diff -r /home/yajat/Desktop/aosp12_r11/system/bt/stack/l2cap/l2c_fcr.cc /home/yajat/Desktop/H618-Android12-Src/system/bt/stack/l2cap/l2c_fcr.cc
+1523c1523
+<   uint16_t max_pdu = p_ccb->peer_conn_cfg.mps - 4 /* Length and CID */;
+---
+>   uint16_t max_pdu = std::min(p_ccb->peer_conn_cfg.mps, p_ccb->local_conn_cfg.mps) - 4 /* Length and CID */;
+diff -r /home/yajat/Desktop/aosp12_r11/system/bt/test/mock/mock_stack_btm_ble.cc /home/yajat/Desktop/H618-Android12-Src/system/bt/test/mock/mock_stack_btm_ble.cc
+256a257,259
+> void btm_ble_reset_id(void) {
+>   mock_function_count_map[__func__]++;
+> }
+Only in /home/yajat/Desktop/H618-Android12-Src/system/ca-certificates/files: 7d453d8f.0
+Only in /home/yajat/Desktop/aosp12_r11/system/ca-certificates: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/chre: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/connectivity/wificond: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/debuggerd/Android.bp /home/yajat/Desktop/H618-Android12-Src/system/core/debuggerd/Android.bp
+296a297
+>         "libdebuggerd/test/scudo_test.cpp",
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/debuggerd/libdebuggerd/include/libdebuggerd/scudo.h /home/yajat/Desktop/H618-Android12-Src/system/core/debuggerd/libdebuggerd/include/libdebuggerd/scudo.h
+31c31
+<   ScudoCrashData() = delete;
+---
+>   ScudoCrashData() = default;
+33c33,34
+<   ScudoCrashData(unwindstack::Memory* process_memory, const ProcessInfo& process_info);
+---
+> 
+>   bool SetErrorInfo(unwindstack::Memory* process_memory, const ProcessInfo& process_info);
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/debuggerd/libdebuggerd/scudo.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/debuggerd/libdebuggerd/scudo.cpp
+16a17,21
+> #include <stdint.h>
+> #include <unistd.h>
+> 
+> #include <vector>
+> 
+28,38c33,34
+< std::unique_ptr<char[]> AllocAndReadFully(unwindstack::Memory* process_memory, uint64_t addr,
+<                                           size_t size) {
+<   auto buf = std::make_unique<char[]>(size);
+<   if (!process_memory->ReadFully(addr, buf.get(), size)) {
+<     return std::unique_ptr<char[]>();
+<   }
+<   return buf;
+< }
+< 
+< ScudoCrashData::ScudoCrashData(unwindstack::Memory* process_memory,
+<                                const ProcessInfo& process_info) {
+---
+> bool ScudoCrashData::SetErrorInfo(unwindstack::Memory* process_memory,
+>                                   const ProcessInfo& process_info) {
+40c36
+<     return;
+---
+>     return false;
+43,55c39,42
+<   auto stack_depot = AllocAndReadFully(process_memory, process_info.scudo_stack_depot,
+<                                        __scudo_get_stack_depot_size());
+<   auto region_info = AllocAndReadFully(process_memory, process_info.scudo_region_info,
+<                                        __scudo_get_region_info_size());
+<   auto ring_buffer = AllocAndReadFully(process_memory, process_info.scudo_ring_buffer,
+<                                        __scudo_get_ring_buffer_size());
+< 
+<   untagged_fault_addr_ = process_info.untagged_fault_address;
+<   uintptr_t fault_page = untagged_fault_addr_ & ~(PAGE_SIZE - 1);
+< 
+<   uintptr_t memory_begin = fault_page - PAGE_SIZE * 16;
+<   if (memory_begin > fault_page) {
+<     return;
+---
+>   std::vector<char> stack_depot(__scudo_get_stack_depot_size());
+>   if (!process_memory->ReadFully(process_info.scudo_stack_depot, stack_depot.data(),
+>                                  stack_depot.size())) {
+>     return false;
+57,60c44,47
+< 
+<   uintptr_t memory_end = fault_page + PAGE_SIZE * 16;
+<   if (memory_end < fault_page) {
+<     return;
+---
+>   std::vector<char> region_info(__scudo_get_region_info_size());
+>   if (!process_memory->ReadFully(process_info.scudo_region_info, region_info.data(),
+>                                  region_info.size())) {
+>     return false;
+62,65c49,52
+< 
+<   auto memory = std::make_unique<char[]>(memory_end - memory_begin);
+<   for (auto i = memory_begin; i != memory_end; i += PAGE_SIZE) {
+<     process_memory->ReadFully(i, memory.get() + i - memory_begin, PAGE_SIZE);
+---
+>   std::vector<char> ring_buffer(__scudo_get_ring_buffer_size());
+>   if (!process_memory->ReadFully(process_info.scudo_ring_buffer, ring_buffer.data(),
+>                                  ring_buffer.size())) {
+>     return false;
+68,71c55,116
+<   auto memory_tags = std::make_unique<char[]>((memory_end - memory_begin) / kTagGranuleSize);
+<   for (auto i = memory_begin; i != memory_end; i += kTagGranuleSize) {
+<     memory_tags[(i - memory_begin) / kTagGranuleSize] = process_memory->ReadTag(i);
+<   }
+---
+>   uintptr_t page_size = getpagesize();
+> 
+>   untagged_fault_addr_ = process_info.untagged_fault_address;
+>   uintptr_t fault_page = untagged_fault_addr_ & ~(page_size - 1);
+> 
+>   // Attempt to get 16 pages before the fault page and 16 pages after.
+>   constexpr size_t kExtraPages = 16;
+>   std::vector<char> memory(page_size * (kExtraPages * 2 + 1));
+> 
+>   // Read faulting page first.
+>   size_t memory_index = kExtraPages;
+>   if (!process_memory->ReadFully(fault_page, &memory[memory_index * page_size], page_size)) {
+>     return false;
+>   }
+> 
+>   // Attempt to read the pages after the fault page, stop as soon as we
+>   // fail to read.
+>   uintptr_t read_addr = fault_page;
+>   if (!__builtin_add_overflow(fault_page, page_size, &read_addr)) {
+>     memory_index++;
+>     for (size_t i = 0; i < kExtraPages; i++, memory_index++) {
+>       if (!process_memory->ReadFully(read_addr, &memory[memory_index * page_size], page_size)) {
+>         break;
+>       }
+>       if (__builtin_add_overflow(read_addr, page_size, &read_addr)) {
+>         break;
+>       }
+>     }
+>   }
+>   uintptr_t memory_end = read_addr;
+> 
+>   // Attempt to read the pages before the fault page, stop as soon as we
+>   // fail to read.
+>   memory_index = kExtraPages;
+>   if (fault_page > 0) {
+>     read_addr = fault_page - page_size;
+>     for (size_t i = 0; i < kExtraPages; i++, memory_index--) {
+>       if (!process_memory->ReadFully(read_addr, &memory[(memory_index - 1) * page_size],
+>                                      page_size)) {
+>         break;
+>       }
+>       if (read_addr == 0) {
+>         memory_index--;
+>         break;
+>       }
+>       read_addr -= page_size;
+>     }
+>   }
+>   size_t start_memory_index = memory_index;
+>   uintptr_t memory_begin = fault_page - (kExtraPages - memory_index) * page_size;
+> 
+>   std::vector<long> memory_tags((memory_end - memory_begin) / kTagGranuleSize);
+>   read_addr = memory_begin;
+>   for (size_t i = 0; i < memory_tags.size(); i++) {
+>     memory_tags[i] = process_memory->ReadTag(read_addr);
+>     read_addr += kTagGranuleSize;
+>   }
+> 
+>   __scudo_get_error_info(
+>       &error_info_, process_info.maybe_tagged_fault_address, stack_depot.data(), region_info.data(),
+>       ring_buffer.data(), &memory[start_memory_index * page_size],
+>       reinterpret_cast<const char*>(memory_tags.data()), memory_begin, memory_end - memory_begin);
+73,75c118
+<   __scudo_get_error_info(&error_info_, process_info.maybe_tagged_fault_address, stack_depot.get(),
+<                          region_info.get(), ring_buffer.get(), memory.get(), memory_tags.get(),
+<                          memory_begin, memory_end - memory_begin);
+---
+>   return true;
+Only in /home/yajat/Desktop/H618-Android12-Src/system/core/debuggerd/libdebuggerd/test: scudo_test.cpp
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/debuggerd/libdebuggerd/tombstone.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/debuggerd/libdebuggerd/tombstone.cpp
+393c393
+<   std::unique_ptr<ScudoCrashData> scudo_crash_data;
+---
+>   ScudoCrashData scudo_crash_data;
+397,398c397
+<     scudo_crash_data =
+<         std::make_unique<ScudoCrashData>(unwinder->GetProcessMemory().get(), process_info);
+---
+>     scudo_crash_data.SetErrorInfo(unwinder->GetProcessMemory().get(), process_info);
+403c402
+<   } else if (thread_info.siginfo && !(primary_thread && scudo_crash_data->CrashIsMine())) {
+---
+>   } else if (thread_info.siginfo && !(primary_thread && scudo_crash_data.CrashIsMine())) {
+437c436
+<     scudo_crash_data->DumpCause(log, unwinder);
+---
+>     scudo_crash_data.DumpCause(log, unwinder);
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/debuggerd/libdebuggerd/tombstone_proto.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/debuggerd/libdebuggerd/tombstone_proto.cpp
+188,189c188,190
+<   ScudoCrashData scudo_crash_data(unwinder->GetProcessMemory().get(), process_info);
+<   if (scudo_crash_data.CrashIsMine()) {
+---
+>   ScudoCrashData scudo_crash_data;
+>   if (scudo_crash_data.SetErrorInfo(unwinder->GetProcessMemory().get(), process_info) &&
+>       scudo_crash_data.CrashIsMine()) {
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/fs_mgr/fs_mgr.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/fs_mgr/fs_mgr.cpp
+155a156,159
+> static bool is_vfat(const std::string& fs_type) {
+>     return fs_type == "vfat";
+> }
+> 
+171a176,183
+> int call_msdos(const std::string& fs_blkdev) {
+>     if (access("/system/bin/newfs_msdos", X_OK)) {
+>         LERROR << "not access" << " /system/bin/newfs_msdos ";
+>     }
+>     std::vector<const char*> args = {"/system/bin/newfs_msdos", "-O", "android", fs_blkdev.c_str()};
+>     return logwrap_fork_execvp(args.size(), args.data(), nullptr, false, LOG_KLOG, false, nullptr);
+> }
+> 
+266,270c278,280
+<         if (should_force_check(*fs_stat)) {
+<             LINFO << "Running " << F2FS_FSCK_BIN << " -f -c 10000 --debug-cache "
+<                   << realpath(blk_device);
+<             ret = logwrap_fork_execvp(ARRAY_SIZE(f2fs_fsck_forced_argv), f2fs_fsck_forced_argv,
+<                                       &status, false, LOG_KLOG | LOG_FILE, false, FSCK_LOG_FILE);
+---
+>         if (access(F2FS_FSCK_BIN, X_OK)) {
+>             LINFO << "Not running " << F2FS_FSCK_BIN << " on " << realpath(blk_device)
+>                   << " (executable not in system image)";
+272,279c282,296
+<             LINFO << "Running " << F2FS_FSCK_BIN << " -a -c 10000 --debug-cache "
+<                   << realpath(blk_device);
+<             ret = logwrap_fork_execvp(ARRAY_SIZE(f2fs_fsck_argv), f2fs_fsck_argv, &status, false,
+<                                       LOG_KLOG | LOG_FILE, false, FSCK_LOG_FILE);
+<         }
+<         if (ret < 0) {
+<             /* No need to check for error in fork, we can't really handle it now */
+<             LERROR << "Failed trying to run " << F2FS_FSCK_BIN;
+---
+>             if (should_force_check(*fs_stat)) {
+>                 LINFO << "Running " << F2FS_FSCK_BIN << " -f -c 10000 --debug-cache "
+>                     << realpath(blk_device);
+>                 ret = logwrap_fork_execvp(ARRAY_SIZE(f2fs_fsck_forced_argv), f2fs_fsck_forced_argv,
+>                                         &status, false, LOG_KLOG | LOG_FILE, false, FSCK_LOG_FILE);
+>             } else {
+>                 LINFO << "Running " << F2FS_FSCK_BIN << " -a -c 10000 --debug-cache "
+>                     << realpath(blk_device);
+>                 ret = logwrap_fork_execvp(ARRAY_SIZE(f2fs_fsck_argv), f2fs_fsck_argv, &status, false,
+>                                         LOG_KLOG | LOG_FILE, false, FSCK_LOG_FILE);
+>             }
+>             if (ret < 0) {
+>                 /* No need to check for error in fork, we can't really handle it now */
+>                 LERROR << "Failed trying to run " << F2FS_FSCK_BIN;
+>             }
+280a298,299
+>     } else if (is_vfat(fs_type)) {
+>         call_msdos(blk_device);
+1476a1496,1506
+>             }
+>         }
+>         if (current_entry.mount_point == "/data") {
+>             bool crypt_footer = false;
+>             if (current_entry.is_encryptable() && current_entry.key_loc == KEY_IN_FOOTER) {
+>                 crypt_footer = true;
+>             }
+>             if (fs_mgr_do_resize(current_entry, crypt_footer) == 0) {
+>                 LINFO << "Resize success";
+>             } else {
+>                 LERROR << __FUNCTION__ << "(): Resize failed. ";
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/fs_mgr/fs_mgr_format.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/fs_mgr/fs_mgr_format.cpp
+25a26
+> #include <linux/magic.h>
+38a40,50
+> #define F2FS_BLKSIZE 4096
+> #define F2FS_SUPER_OFFSET 1024
+> 
+> struct f2fs_super_block {
+>        __le32 magic;                   /* Magic Number */
+>        __le16 major_ver;               /* Major Version */
+>        __le16 minor_ver;               /* Minor Version */
+>        __le32 empty[6];
+>        __le32 checksum_offset;         /* checksum offset inside super block */
+>        __le64 block_count;             /* total # of user blocks */
+> } __attribute__((packed));
+161a174,182
+> static int format_vfat(const std::string& fs_blkdev) {
+>     if (access("/system/bin/newfs_msdos", X_OK)) {
+>         LINFO << "format vfat no access" << " /system/bin/newfs_msdos ";
+>     }
+>     LERROR << __FUNCTION__ << ": Format " << fs_blkdev.c_str();
+>     std::vector<const char*> args = {"/system/bin/newfs_msdos", "-O", "android", fs_blkdev.c_str()};
+>     return logwrap_fork_execvp(args.size(), args.data(), nullptr, false, LOG_KLOG, false,nullptr);
+> }
+> 
+178a200,263
+>     } else if (entry.fs_type == "vfat") {
+>         return format_vfat(entry.blk_device);
+>     } else {
+>         LERROR << "File system type '" << entry.fs_type << "' is not supported";
+>         return -EINVAL;
+>     }
+> }
+> 
+> static bool read_f2fs_sb(const std::string& blk_device, struct f2fs_super_block *sb) {
+>     unique_fd fd(TEMP_FAILURE_RETRY(open(blk_device.c_str(), O_RDONLY | O_CLOEXEC)));
+>     if (TEMP_FAILURE_RETRY(pread(fd, sb, sizeof(*sb), F2FS_SUPER_OFFSET)) != sizeof(*sb)) {
+>         return false;
+>     }
+>     if (sb->magic == cpu_to_le32(F2FS_SUPER_MAGIC)) return true;
+>     if (TEMP_FAILURE_RETRY(pread(fd, sb, sizeof(*sb), F2FS_BLKSIZE + F2FS_SUPER_OFFSET)) != sizeof(*sb)) {
+>         return false;
+>     }
+>     return sb->magic == cpu_to_le32(F2FS_SUPER_MAGIC);
+> }
+> 
+> static uint64_t get_f2fs_size(const std::string& blk_device) {
+>     struct f2fs_super_block sb;
+>     if (read_f2fs_sb(blk_device, &sb)) {
+>         return sb.block_count * F2FS_BLKSIZE;
+>     }
+>     return 0;
+> }
+> 
+> static int resize_f2fs(const std::string& fs_blkdev, uint64_t dev_sz, bool crypt_footer) {
+>     if (!dev_sz) {
+>         int rc = get_dev_sz(fs_blkdev, &dev_sz);
+>         if (rc) {
+>             return rc;
+>         }
+>     }
+> 
+>     /* Format the partition using the calculated length */
+>     if (crypt_footer) {
+>         dev_sz -= CRYPT_FOOTER_OFFSET;
+>     }
+>     LINFO << "dev_sz: " << dev_sz;
+>     uint64_t f2fs_sz = get_f2fs_size(fs_blkdev);
+>     LINFO << "f2fs_sz: " << f2fs_sz;
+>     if (f2fs_sz <= 0 || dev_sz <= f2fs_sz + 4096 * 1024) {
+>        LINFO << "no need resize";
+>        return 0;
+>     }
+> 
+>     std::string size_str = std::to_string(dev_sz / 512);
+> 
+>     std::vector<const char*> args = {"/system/bin/resize.f2fs", "-t"};
+>     args.push_back(size_str.c_str());
+>     args.push_back(fs_blkdev.c_str());
+> 
+>     return logwrap_fork_execvp(args.size(), args.data(), nullptr, false, LOG_KLOG, false, nullptr);
+> }
+> 
+> int fs_mgr_do_resize(const FstabEntry& entry, bool crypt_footer) {
+>     LERROR << __FUNCTION__ << ": Reszie " << entry.blk_device << " as '" << entry.length << "'";
+> 
+>     if (entry.fs_type == "f2fs") {
+>         return resize_f2fs(entry.blk_device, entry.length, crypt_footer);
+>     //} else if (entry.fs_type == "ext4") {
+>     //    return resize_ext4(entry.blk_device, entry.mount_point, crypt_footer);
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/fs_mgr/include/fs_mgr.h /home/yajat/Desktop/H618-Android12-Src/system/core/fs_mgr/include/fs_mgr.h
+102a103
+> int fs_mgr_do_resize(const android::fs_mgr::FstabEntry& entry, bool reserve_footer);
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/fs_mgr/libsnapshot/include/libsnapshot/snapshot.h /home/yajat/Desktop/H618-Android12-Src/system/core/fs_mgr/libsnapshot/include/libsnapshot/snapshot.h
+401a402
+>     FRIEND_TEST(SnapshotUpdateTest, AddPartition);
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/fs_mgr/libsnapshot/snapshot.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/fs_mgr/libsnapshot/snapshot.cpp
+520a521,527
+>     if (mode == SnapshotStorageMode::Persistent && status.state() == SnapshotState::MERGING) {
+>         LOG(ERROR) << "Snapshot: " << name
+>                    << " has snapshot status Merging but mode set to Persistent."
+>                    << " Changing mode to Snapshot-Merge.";
+>         mode = SnapshotStorageMode::Merge;
+>     }
+> 
+888a896,899
+>     if (!status->error.empty()) {
+>         LOG(ERROR) << "Snapshot: " << dm_name << " returned error code: " << status->error;
+>         return false;
+>     }
+1459c1470
+<     // Don't use EnsuerSnapuserdConnected() because this is called from init,
+---
+>     // Don't use EnsureSnapuserdConnected() because this is called from init,
+1515a1527,1533
+>         std::string source_device_name;
+>         if (snapshot_status.old_partition_size() > 0) {
+>             source_device_name = GetSourceDeviceName(snapshot);
+>         } else {
+>             source_device_name = GetBaseDeviceName(snapshot);
+>         }
+> 
+1517c1535
+<         if (!dm.GetDmDevicePathByName(GetSourceDeviceName(snapshot), &source_device)) {
+---
+>         if (!dm.GetDmDevicePathByName(source_device_name, &source_device)) {
+2094,2098c2112,2117
+<         if (!MapSourceDevice(lock, params.GetPartitionName(), remaining_time,
+<                              &source_device_path)) {
+<             LOG(ERROR) << "Could not map source device for: " << cow_name;
+<             return false;
+<         }
+---
+>         if (live_snapshot_status->old_partition_size() > 0) {
+>             if (!MapSourceDevice(lock, params.GetPartitionName(), remaining_time,
+>                                  &source_device_path)) {
+>                 LOG(ERROR) << "Could not map source device for: " << cow_name;
+>                 return false;
+>             }
+2100,2101c2119,2123
+<         auto source_device = GetSourceDeviceName(params.GetPartitionName());
+<         created_devices.EmplaceBack<AutoUnmapDevice>(&dm, source_device);
+---
+>             auto source_device = GetSourceDeviceName(params.GetPartitionName());
+>             created_devices.EmplaceBack<AutoUnmapDevice>(&dm, source_device);
+>         } else {
+>             source_device_path = base_path;
+>         }
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/fs_mgr/libsnapshot/snapshot_test.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/fs_mgr/libsnapshot/snapshot_test.cpp
+966c966
+<         for (const auto& name : {"sys", "vnd", "prd"}) {
+---
+>         for (const auto& name : {"sys", "vnd", "prd", "dlkm"}) {
+2026a2027,2100
+> }
+> 
+> TEST_F(SnapshotUpdateTest, AddPartition) {
+>     // OTA client blindly unmaps all partitions that are possibly mapped.
+>     for (const auto& name : {"sys_b", "vnd_b", "prd_b"}) {
+>         ASSERT_TRUE(sm->UnmapUpdateSnapshot(name));
+>     }
+> 
+>     group_->add_partition_names("dlkm");
+> 
+>     auto dlkm = manifest_.add_partitions();
+>     dlkm->set_partition_name("dlkm");
+>     dlkm->set_estimate_cow_size(2_MiB);
+>     SetSize(dlkm, 3_MiB);
+> 
+>     // Grow all partitions. Set |prd| large enough that |sys| and |vnd|'s COWs
+>     // fit in super, but not |prd|.
+>     constexpr uint64_t partition_size = 3788_KiB;
+>     SetSize(sys_, partition_size);
+>     SetSize(vnd_, partition_size);
+>     SetSize(prd_, partition_size);
+>     SetSize(dlkm, partition_size);
+> 
+>     AddOperationForPartitions({sys_, vnd_, prd_, dlkm});
+> 
+>     // Execute the update.
+>     ASSERT_TRUE(sm->BeginUpdate());
+>     ASSERT_TRUE(sm->CreateUpdateSnapshots(manifest_));
+> 
+>     // Write some data to target partitions.
+>     for (const auto& name : {"sys_b", "vnd_b", "prd_b", "dlkm_b"}) {
+>         ASSERT_TRUE(WriteSnapshotAndHash(name));
+>     }
+> 
+>     // Assert that source partitions aren't affected.
+>     for (const auto& name : {"sys_a", "vnd_a", "prd_a"}) {
+>         ASSERT_TRUE(IsPartitionUnchanged(name));
+>     }
+> 
+>     ASSERT_TRUE(sm->FinishedSnapshotWrites(false));
+> 
+>     // Simulate shutting down the device.
+>     ASSERT_TRUE(UnmapAll());
+> 
+>     // After reboot, init does first stage mount.
+>     auto init = NewManagerForFirstStageMount("_b");
+>     ASSERT_NE(init, nullptr);
+> 
+>     ASSERT_TRUE(init->EnsureSnapuserdConnected());
+>     init->set_use_first_stage_snapuserd(true);
+> 
+>     ASSERT_TRUE(init->NeedSnapshotsInFirstStageMount());
+>     ASSERT_TRUE(init->CreateLogicalAndSnapshotPartitions("super", snapshot_timeout_));
+> 
+>     // Check that the target partitions have the same content.
+>     std::vector<std::string> partitions = {"sys_b", "vnd_b", "prd_b", "dlkm_b"};
+>     for (const auto& name : partitions) {
+>         ASSERT_TRUE(IsPartitionUnchanged(name));
+>     }
+> 
+>     ASSERT_TRUE(init->PerformInitTransition(SnapshotManager::InitTransition::SECOND_STAGE));
+>     for (const auto& name : partitions) {
+>         ASSERT_TRUE(init->snapuserd_client()->WaitForDeviceDelete(name + "-user-cow-init"));
+>     }
+> 
+>     // Initiate the merge and wait for it to be completed.
+>     ASSERT_TRUE(init->InitiateMerge());
+>     ASSERT_EQ(UpdateState::MergeCompleted, init->ProcessUpdateState());
+> 
+>     // Check that the target partitions have the same content after the merge.
+>     for (const auto& name : {"sys_b", "vnd_b", "prd_b", "dlkm_b"}) {
+>         ASSERT_TRUE(IsPartitionUnchanged(name))
+>                 << "Content of " << name << " changes after the merge";
+>     }
+Only in /home/yajat/Desktop/aosp12_r11/system/core: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/healthd/Android.bp /home/yajat/Desktop/H618-Android12-Src/system/core/healthd/Android.bp
+125c125,126
+<     export_include_dirs: [".", "include"],
+---
+>     include_dirs: ["hardware/aw/display/include"],
+>     export_include_dirs: [".", "include", ],
+148a150
+>         "aw_healthd.cpp",
+Only in /home/yajat/Desktop/H618-Android12-Src/system/core/healthd: aw_healthd.cpp
+Only in /home/yajat/Desktop/H618-Android12-Src/system/core/healthd: aw_healthd.h
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/healthd/healthd_mode_charger.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/healthd/healthd_mode_charger.cpp
+61a62
+> #include <aw_healthd.h>
+736a738,739
+> 
+>     aw_healthd_init();
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/init/init.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/init/init.cpp
+323a324,326
+>         if (!parser.ParseConfig("/oem/etc/init")) {
+>             late_import_paths.emplace_back("/oem/etc/init");
+>         }
+784a788,792
+>     }
+> 
+>     if (mount("/dev/block/by-name/media_data", "/oem", "vfat",MS_NOSUID|MS_NOATIME|MS_RDONLY,
+>                                 "errors=panic,utf8,context=u:object_r:oemfs:s0,fmask=0022,dmask=0022") != 0) {
+>         LOG(ERROR) << "mount media_data fail" << "*****" <<  strerror(errno);
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/init/property_service.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/init/property_service.cpp
+1085a1086
+>     load_properties_from_file("/oem/build.prop", nullptr, &properties);
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/init/reboot.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/init/reboot.cpp
+636a637
+>     bool do_shutdown_animation = GetBoolProperty("ro.init.shutdown_animation", false);
+649a651,652
+>         } else if (do_shutdown_animation) {
+>             continue;
+662c665
+<     if (cmd == ANDROID_RB_POWEROFF || is_thermal_shutdown) {
+---
+>     if (!do_shutdown_animation && (cmd == ANDROID_RB_POWEROFF || is_thermal_shutdown)) {
+669d671
+<         bool do_shutdown_animation = GetBoolProperty("ro.init.shutdown_animation", false);
+980a983,993
+>     const char *file = "/dev/shutdown";
+>     int fd = creat(file, 00666);
+>     if (fd) {
+>         ssize_t size = write(fd, cmd_params[0].c_str(), cmd_params[0].size());
+>         if (size == 0) {
+>             LOG(WARNING) << "Write reason to /dev/shutdown fail";
+>         }
+>         close(fd);
+>     } else {
+>         LOG(WARNING) << "Create /dev/shutdown fail";
+>     }
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/libcutils/fs_config.cpp /home/yajat/Desktop/H618-Android12-Src/system/core/libcutils/fs_config.cpp
+89c89
+<     { 00750, AID_ROOT,         AID_SHELL,        0, "system/xbin" },
+---
+>     { 00751, AID_ROOT,         AID_SHELL,        0, "system/xbin" },
+193c193
+<     { 04750, AID_ROOT,      AID_SHELL,     0, "system/xbin/su" },
+---
+>     { 06755, AID_ROOT,      AID_SHELL,     0, "system/xbin/su" },
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/llkd/llkd-debuggable.rc /home/yajat/Desktop/H618-Android12-Src/system/core/llkd/llkd-debuggable.rc
+2,3c2,3
+<     setprop llk.enable ${ro.llk.enable:-1}
+<     setprop khungtask.enable ${ro.khungtask.enable:-1}
+---
+>     setprop llk.enable ${ro.llk.enable:-0}
+>     setprop khungtask.enable ${ro.khungtask.enable:-0}
+6c6
+<     setprop llk.enable ${ro.debuggable:-0}
+---
+>     setprop llk.enable ${ro.llk.enable:-0}
+9c9
+<     setprop khungtask.enable ${ro.debuggable:-0}
+---
+>     setprop khungtask.enable ${ro.khungtask.enable:-0}
+diff -r /home/yajat/Desktop/aosp12_r11/system/core/rootdir/init.rc /home/yajat/Desktop/H618-Android12-Src/system/core/rootdir/init.rc
+630a631,633
+>     # WCN
+>     mkdir /data/unisoc_dbg 0777 root root
+> 
+Only in /home/yajat/Desktop/H618-Android12-Src/system/core: trace_readahead
+Only in /home/yajat/Desktop/aosp12_r11/system/extras: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/extras/su/su.cpp /home/yajat/Desktop/H618-Android12-Src/system/extras/su/su.cpp
+83,84c83,84
+<     uid_t current_uid = getuid();
+<     if (current_uid != AID_ROOT && current_uid != AID_SHELL) error(1, 0, "not allowed");
+---
+>     //uid_t current_uid = getuid();
+>     //if (current_uid != AID_ROOT && current_uid != AID_SHELL) error(1, 0, "not allowed");
+Only in /home/yajat/Desktop/aosp12_r11/system/gatekeeper: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/gsid: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/hardware/interfaces: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/hardware/interfaces/suspend/1.0/default/main.cpp /home/yajat/Desktop/H618-Android12-Src/system/hardware/interfaces/suspend/1.0/default/main.cpp
+59c59
+< static constexpr uint32_t kDefaultBaseSleepTimeMillis = 100;
+---
+> static constexpr uint32_t kDefaultBaseSleepTimeMillis = 500;
+Only in /home/yajat/Desktop/aosp12_r11/system/hwservicemanager: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/incremental_delivery: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/iorap: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/iorap/iorapd.rc /home/yajat/Desktop/H618-Android12-Src/system/iorap/iorapd.rc
+34c34
+< on property:persist.device_config.runtime_native_boot.iorap_perfetto_enable=true && property:ro.iorapd.enable=true
+---
+> on property:persist.device_config.runtime_native_boot.iorap_perfetto_enable=true && property:ro.iorapd.enable=true && property:persist.sys.without.treadahead=1
+37c37
+< on property:persist.device_config.runtime_native_boot.iorap_readahead_enable=true && property:ro.iorapd.enable=true
+---
+> on property:persist.device_config.runtime_native_boot.iorap_readahead_enable=true && property:ro.iorapd.enable=true && property:persist.sys.without.treadahead=1
+diff -r /home/yajat/Desktop/aosp12_r11/system/iorap/src/compiler/compiler.cc /home/yajat/Desktop/H618-Android12-Src/system/iorap/src/compiler/compiler.cc
+45a46,48
+> #include <android-base/properties.h>
+> 
+> 
+333a337,345
+> 
+>     /*AW_CODE;add iorap-filter-pid;jiangbin;201203*/
+>     uint32_t cur_start_pid = 0;
+>     bool droidboost_enable =
+>         !android::base::GetIntProperty("persist.sys.droidboost.disable",/*default*/ 0);
+>     /*end*/
+> 
+> 
+> 
+diff -r /home/yajat/Desktop/aosp12_r11/system/iorap/src/iorapd/main.cc /home/yajat/Desktop/H618-Android12-Src/system/iorap/src/iorapd/main.cc
+35,36c35,36
+<   bool tracing_allowed = iorap::common::IsTracingEnabled(/*default_value=*/"false");
+<   bool readahead_allowed = iorap::common::IsReadAheadEnabled(/*default_value*/"false");
+---
+>   bool tracing_allowed = iorap::common::IsTracingEnabled(/*default_value=*/"true");
+>   bool readahead_allowed = iorap::common::IsReadAheadEnabled(/*default_value*/"true");
+diff -r /home/yajat/Desktop/aosp12_r11/system/iorap/src/manager/event_manager.cc /home/yajat/Desktop/H618-Android12-Src/system/iorap/src/manager/event_manager.cc
+70a71,72
+> static std::string s_cur_start_package;//AW_CODE;jiangbin
+> static bool droidboost_enable = false;
+218a221,222
+>         s_cur_start_package = package_name;//AW_CODE
+> 
+522a527,540
+> 
+>           /*AW_CODE;iorap-filter-pid;jiangbin;201203*/
+>          // bool droidboost_enable =
+>          // !android::base::GetIntProperty("persist.sys.droidboost.disable",/*default*/ 0);
+>           if(droidboost_enable) {
+>               if(versioned_component_name.GetPackage() != s_cur_start_package) {
+>                 LOG(WARNING) << "write trace record_package = "<< s_cur_start_package
+>                 << " cur_package= " <<versioned_component_name.GetPackage() << " Match Failed";
+>                  return;
+>               }
+>           }
+>          /*end*/
+> 
+> 
+554a573,590
+>             /*AW_CODE;iorap-immediately compile;jiangbin;201203*/
+>           if(droidboost_enable) {
+>             maintenance::ControllerParameters params{
+>               /*output_text*/false,
+>               /*inode_textcache*/std::nullopt,
+>               WOULD_LOG(VERBOSE),
+>               /*recompile*/true,
+>               s_min_traces,
+>               std::make_shared<maintenance::Exec>(),
+>               common::ExcludeDexFiles(kExcludeDexFilesDefault)};
+> 
+>             if(!maintenance::CompileSingleAppOnDevice(db, std::move(params), versioned_component_name.GetPackage())) {
+>                 LOG(WARNING) << "Immediately CompilePackage: " << versioned_component_name.GetPackage() << " Failed";
+>             }
+>           }
+>             /*end*/
+> 
+> 
+1230,1241d1265
+<     tracing_allowed_ = common::IsTracingEnabled(/*default_value=*/"false");
+<     s_tracing_allowed = tracing_allowed_;
+<     printer.printFormatLine("iorapd.perfetto.enable = %s", tracing_allowed_ ? "true" : "false");
+< 
+<     readahead_allowed_ = common::IsReadAheadEnabled(/*default_value=*/"false");
+<     s_readahead_allowed = readahead_allowed_;
+<     printer.printFormatLine("iorapd.readahead.enable = %s", s_readahead_allowed ? "true" : "false");
+< 
+<     s_min_traces =
+<         ::android::base::GetUintProperty<uint64_t>("iorapd.maintenance.min_traces", /*default*/1);
+<     uint64_t min_traces = s_min_traces;
+<     printer.printFormatLine("iorapd.maintenance.min_traces = %" PRIu64, min_traces);
+1243,1244c1267,1291
+<     printer.printFormatLine("iorapd.exclude_dex_files = %s",
+<                             common::ExcludeDexFiles(kExcludeDexFilesDefault) ? "true" : "false");
+---
+>     droidboost_enable = !android::base::GetIntProperty("persist.sys.droidboost.disable",/*default*/ 0);
+> 
+>     if(droidboost_enable) {
+>         tracing_allowed_ = true;
+>         s_tracing_allowed = true;
+>         readahead_allowed_ = true;
+>         s_readahead_allowed = true;
+>         s_min_traces = 2;
+>     } else {
+>         tracing_allowed_ = common::IsTracingEnabled(/*default_value=*/"true"/*AW_CODE,default enable*/);
+>         s_tracing_allowed = tracing_allowed_;
+>         printer.printFormatLine("iorapd.perfetto.enable = %s", tracing_allowed_ ? "true" : "false");
+> 
+>         readahead_allowed_ = common::IsReadAheadEnabled(/*default_value=*/"true"/*AW_CODE,default enable*/);
+>         s_readahead_allowed = readahead_allowed_;
+>         printer.printFormatLine("iorapd.readahead.enable = %s", s_readahead_allowed ? "true" : "false");
+> 
+>         s_min_traces =
+>             ::android::base::GetUintProperty<uint64_t>("iorapd.maintenance.min_traces", /*default*/2/*AW_CODE,default 2 min*/);
+>         uint64_t min_traces = s_min_traces;
+>         printer.printFormatLine("iorapd.maintenance.min_traces = %" PRIu64, min_traces);
+> 
+>         printer.printFormatLine("iorapd.exclude_dex_files = %s",
+>                                 common::ExcludeDexFiles(kExcludeDexFilesDefault) ? "true" : "false");
+>     }
+Only in /home/yajat/Desktop/aosp12_r11/system/keymaster: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libartpalette: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libbase: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libfmq: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libhidl: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libhwbinder: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libprocinfo: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libsysprop: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libufdt: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libvintf: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/libziparchive: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/linkerconfig: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/logging: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/media/audio/include/system/audio-base-utils.h /home/yajat/Desktop/H618-Android12-Src/system/media/audio/include/system/audio-base-utils.h
+42c42
+<     AUDIO_SOURCE_MAX          = AUDIO_SOURCE_VOICE_PERFORMANCE,
+---
+>     AUDIO_SOURCE_MAX          = AUDIO_SOURCE_HDMI_IN,
+diff -r /home/yajat/Desktop/aosp12_r11/system/media/audio/include/system/audio_common-base.h /home/yajat/Desktop/H618-Android12-Src/system/media/audio/include/system/audio_common-base.h
+23a24,25
+>     HAL_AUDIO_MODE_FM = 5,
+>     HAL_AUDIO_MODE_MODE_FACTORY_TEST = 6,
+diff -r /home/yajat/Desktop/aosp12_r11/system/media/audio/include/system/audio.h /home/yajat/Desktop/H618-Android12-Src/system/media/audio/include/system/audio.h
+79a80,81
+>     AUDIO_MODE_FM = HAL_AUDIO_MODE_FM,
+>     AUDIO_MODE_MODE_FACTORY_TEST = HAL_AUDIO_MODE_MODE_FACTORY_TEST,
+81c83
+<     AUDIO_MODE_MAX            = AUDIO_MODE_CALL_SCREEN,
+---
+>     AUDIO_MODE_MAX            = AUDIO_MODE_MODE_FACTORY_TEST,
+1842a1845,1852
+> static inline bool audio_format_is_iec61937(audio_format_t format)
+> {
+>     return ((format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_AC3 ||
+>             (format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_E_AC3 ||
+>             (format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_DTS ||
+>             (format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_DTS_HD ||
+>             (format & AUDIO_FORMAT_MAIN_MASK) == AUDIO_FORMAT_IEC61937);
+> }
+1848c1858
+<     return (audio_get_main_format(format) == AUDIO_FORMAT_PCM);
+---
+>     return (audio_get_main_format(format) == AUDIO_FORMAT_PCM || audio_format_is_iec61937(format));
+1865c1875
+<             || mainFormat == AUDIO_FORMAT_IEC61937);
+---
+>             || mainFormat == AUDIO_FORMAT_IEC61937 || audio_format_is_iec61937(format));
+1881a1892,1896
+>         //For ac3 and e-ac3 has been packed through over PCM. Details for iec61937
+>         case AUDIO_FORMAT_AC3:
+>         case AUDIO_FORMAT_E_AC3:
+>         case AUDIO_FORMAT_DTS:
+>         case AUDIO_FORMAT_DTS_HD:
+diff -r /home/yajat/Desktop/aosp12_r11/system/media/audio/include/system/audio-hal-enums.h /home/yajat/Desktop/H618-Android12-Src/system/media/audio/include/system/audio-hal-enums.h
+674a675
+>     V(AUDIO_SOURCE_HDMI_IN, 11) \
+Only in /home/yajat/Desktop/aosp12_r11/system/media: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/memory/libdmabufheap: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/memory/libion: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/memory/libmeminfo: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/memory/libmeminfo/tools/procrank.cpp /home/yajat/Desktop/H618-Android12-Src/system/memory/libmeminfo/tools/procrank.cpp
+327a328
+>     uint64_t used = smi.mem_total_kb() - smi.mem_free_kb() - smi.mem_cached_kb() + (smi.mem_swap_kb() - smi.mem_swap_free_kb() - smi.mem_zram_kb()) - smi.mem_slab_reclaimable_kb();
+331c332
+<                                         "K slab",
+---
+>                                         "K slab, %" PRIu64 "M free+cached,",
+333c334,335
+<                                         smi.mem_cached_kb(), smi.mem_shmem_kb(), smi.mem_slab_kb());
+---
+>                                         smi.mem_cached_kb(), smi.mem_shmem_kb(), smi.mem_slab_kb(),(smi.mem_free_kb() + smi.mem_cached_kb())/1024);
+>     ss << ::android::base::StringPrintf(" %" PRId64 " M used", used/1024);
+Only in /home/yajat/Desktop/aosp12_r11/system/memory/libmemtrack: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/memory/libmemunreachable: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/memory/lmkd: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/memory/lmkd/lmkd.cpp /home/yajat/Desktop/H618-Android12-Src/system/memory/lmkd/lmkd.cpp
+125c125
+< #define PSI_POLL_PERIOD_SHORT_MS 10
+---
+> #define PSI_POLL_PERIOD_SHORT_MS 200
+127c127
+< #define PSI_POLL_PERIOD_LONG_MS 100
+---
+> #define PSI_POLL_PERIOD_LONG_MS 1000
+208,210c208,210
+<     { PSI_SOME, 70 },    /* 70ms out of 1sec for partial stall */
+<     { PSI_SOME, 100 },   /* 100ms out of 1sec for partial stall */
+<     { PSI_FULL, 70 },    /* 70ms out of 1sec for complete stall */
+---
+>     { PSI_SOME, 200 },    /* 70ms out of 1sec for partial stall */
+>     { PSI_SOME, 200 },   /* 100ms out of 1sec for partial stall */
+>     { PSI_FULL, 500 },    /* 70ms out of 1sec for complete stall */
+276a277
+> static char* whitelist;
+1889a1891,1921
+> static char* get_lmkd_whitelist() {
+>     char path[PATH_MAX];
+>     char line[4096];
+>     int fd;
+>     char *cp;
+>     ssize_t ret;
+>     char *list;
+> 
+>     /* gid containing AID_READPROC required */
+>     snprintf(path, PATH_MAX, "/system/etc/lmkd_whitelist");
+>     fd = open(path, O_RDONLY | O_CLOEXEC);
+>     if (fd == -1)
+>         return NULL;
+>     ret = read_all(fd, line, sizeof(line) - 1);
+>     close(fd);
+>     if (ret <= 0) {
+>         return NULL;
+>     }
+>     list = static_cast<char*>(malloc(ret*2));
+>     memset(list, 0, ret*2);
+>     cp = strtok(line, "\n");
+>     while(cp != NULL){
+>         strcat(list,cp);
+>         strcat(list, ";");
+>         cp = strtok(NULL, "\n");
+>     }
+>     ALOGW("LMKD : whitelist %s", list);
+>     return list;
+> 
+> }
+> 
+2112a2145,2165
+> static int strsearch(char *name, char *list){
+>   int retval = 0;
+>   char *cp;
+>   char *list2;
+>   if(list==NULL || name==NULL) {
+>     retval =0;
+>   } else {
+>     list2 = strdup(list);
+>     cp = strtok(list2, ";");
+>     while(cp) {
+>       if (strstr(name,cp) != NULL) {
+>         retval = 1;
+>         break;
+>       }
+>       cp = strtok(NULL, ";");
+>     }
+>     free(list2);
+>   }
+>   return retval;
+> }
+> 
+2126a2180
+>     char topapp[LINE_MAX];
+2156c2210
+<     // taskname will point inside buf, do not reuse buf onwards.
+---
+> 
+2160a2215,2225
+>     property_get("sys.lmk_top_app",topapp, "");
+>     if(strstr(taskname, topapp) != NULL){
+>        ALOGW("found name '%s' is top app, not kill", taskname);
+>        goto out;
+>     }
+> 
+>     if(strsearch(taskname,whitelist) != 0){
+>        ALOGW("found task %s in whitelist, not kill", taskname);
+>        goto out;
+>     }
+> 
+2844a2910,2912
+>     if (debug_process_killing) {
+>         ALOGI("mem_pressure is %" PRId64 ", downgrade_pressure is %" PRId64 "\n", mem_pressure,downgrade_pressure);
+>     }
+2987c3055
+<         property_get_bool("ro.lmk.use_new_strategy", low_ram_device || !use_minfree_levels);
+---
+>         property_get_bool("ro.lmk.use_new_strategy", false);
+3466a3535,3536
+>     whitelist = get_lmkd_whitelist();
+> 
+3497a3568,3569
+> 
+>     free(whitelist);
+Only in /home/yajat/Desktop/aosp12_r11/system/netd: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/nfc: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/nfc/src/gki/common/gki_buffer.cc /home/yajat/Desktop/H618-Android12-Src/system/nfc/src/gki/common/gki_buffer.cc
+19a20
+> #include <log/log.h>
+261,262c262,264
+<   if (size == 0) {
+<     LOG(ERROR) << StringPrintf("getbuf: Size is zero");
+---
+>   if (size == 0 || size > (USHRT_MAX - 3)) {
+>     LOG(ERROR) << StringPrintf("getbuf: Requested size(%d) is invalid", size);
+>     android_errorWriteLog(0x534e4554, "205729183");
+Only in /home/yajat/Desktop/aosp12_r11/system/nvram: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/security: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/security/keystore2/src/km_compat/km_compat.cpp /home/yajat/Desktop/H618-Android12-Src/system/security/keystore2/src/km_compat/km_compat.cpp
+765c765,779
+< ScopedAStatus KeyMintOperation::update(const std::vector<uint8_t>& input,
+---
+> void KeyMintOperation::setUpdateBuffer(std::vector<uint8_t> data) {
+>     mUpdateBuffer = std::move(data);
+> }
+> 
+> const std::vector<uint8_t>&
+> KeyMintOperation::getExtendedUpdateBuffer(const std::vector<uint8_t>& suffix) {
+>     if (mUpdateBuffer.empty()) {
+>         return suffix;
+>     } else {
+>         mUpdateBuffer.insert(mUpdateBuffer.end(), suffix.begin(), suffix.end());
+>         return mUpdateBuffer;
+>     }
+> }
+> 
+> ScopedAStatus KeyMintOperation::update(const std::vector<uint8_t>& input_raw,
+774a789
+>     auto input = getExtendedUpdateBuffer(input_raw);
+776a792
+>         uint32_t consumed = 0;
+784c800
+<                                 inputPos += inputConsumed;
+---
+>                                 consumed = inputConsumed;
+790a807,815
+> 
+>         if (errorCode == KMV1::ErrorCode::OK && consumed == 0) {
+>             // Some very old KM implementations do not buffer sub blocks in certain block modes,
+>             // instead, the simply return consumed == 0. So we buffer the input here in the
+>             // hope that we complete the bock in a future call to update.
+>             setUpdateBuffer({input.begin() + inputPos, input.end()});
+>             return convertErrorCode(errorCode);
+>         }
+>         inputPos += consumed;
+805c830,831
+<     auto input = in_input.value_or(std::vector<uint8_t>());
+---
+>     auto input_raw = in_input.value_or(std::vector<uint8_t>());
+>     auto input = getExtendedUpdateBuffer(input_raw);
+diff -r /home/yajat/Desktop/aosp12_r11/system/security/keystore2/src/km_compat/km_compat.h /home/yajat/Desktop/H618-Android12-Src/system/security/keystore2/src/km_compat/km_compat.h
+143,147d142
+<   private:
+<     ::android::sp<Keymaster> mDevice;
+<     uint64_t mOperationHandle;
+<     OperationSlot mOperationSlot;
+< 
+170a166,184
+> 
+>   private:
+>     /**
+>      * Sets mUpdateBuffer to the given value.
+>      * @param data
+>      */
+>     void setUpdateBuffer(std::vector<uint8_t> data);
+>     /**
+>      * If mUpdateBuffer is not empty, suffix is appended to mUpdateBuffer, and a reference to
+>      * mUpdateBuffer is returned. Otherwise a reference to suffix is returned.
+>      * @param suffix
+>      * @return
+>      */
+>     const std::vector<uint8_t>& getExtendedUpdateBuffer(const std::vector<uint8_t>& suffix);
+> 
+>     std::vector<uint8_t> mUpdateBuffer;
+>     ::android::sp<Keymaster> mDevice;
+>     uint64_t mOperationHandle;
+>     OperationSlot mOperationSlot;
+diff -r /home/yajat/Desktop/aosp12_r11/system/security/keystore-engine/keystore2_engine.cpp /home/yajat/Desktop/H618-Android12-Src/system/security/keystore-engine/keystore2_engine.cpp
+25a26
+> #include <openssl/bio.h>
+30a32
+> #include <openssl/pem.h>
+329a332,356
+> bssl::UniquePtr<EVP_PKEY> extractPubKey(const std::vector<uint8_t>& cert_bytes) {
+>     const uint8_t* p = cert_bytes.data();
+>     bssl::UniquePtr<X509> decoded_cert(d2i_X509(nullptr, &p, cert_bytes.size()));
+>     if (!decoded_cert) {
+>         LOG(INFO) << AT << "Could not decode the cert, trying decoding as PEM";
+>         bssl::UniquePtr<BIO> cert_bio(BIO_new_mem_buf(cert_bytes.data(), cert_bytes.size()));
+>         if (!cert_bio) {
+>             LOG(ERROR) << AT << "Failed to create BIO";
+>             return {};
+>         }
+>         decoded_cert =
+>             bssl::UniquePtr<X509>(PEM_read_bio_X509(cert_bio.get(), nullptr, nullptr, nullptr));
+>     }
+>     if (!decoded_cert) {
+>         LOG(ERROR) << AT << "Could not decode the cert.";
+>         return {};
+>     }
+>     bssl::UniquePtr<EVP_PKEY> pub_key(X509_get_pubkey(decoded_cert.get()));
+>     if (!pub_key) {
+>         LOG(ERROR) << AT << "Could not extract public key.";
+>         return {};
+>     }
+>     return pub_key;
+> }
+> 
+386,392c413
+<     const uint8_t* p = response.metadata.certificate->data();
+<     bssl::UniquePtr<X509> x509(d2i_X509(nullptr, &p, response.metadata.certificate->size()));
+<     if (!x509) {
+<         LOG(ERROR) << AT << "Failed to parse x509 certificate.";
+<         return nullptr;
+<     }
+<     bssl::UniquePtr<EVP_PKEY> pkey(X509_get_pubkey(x509.get()));
+---
+>     auto pkey = extractPubKey(*response.metadata.certificate);
+Only in /home/yajat/Desktop/aosp12_r11/system/sepolicy: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/sepolicy/prebuilts/api/31.0/private/apexd.te /home/yajat/Desktop/H618-Android12-Src/system/sepolicy/prebuilts/api/31.0/private/apexd.te
+88a89
+> allow apexd apex_info_file:file mounton;
+diff -r /home/yajat/Desktop/aosp12_r11/system/sepolicy/prebuilts/api/31.0/private/mediatranscoding.te /home/yajat/Desktop/H618-Android12-Src/system/sepolicy/prebuilts/api/31.0/private/mediatranscoding.te
+2d1
+< type mediatranscoding, domain;
+Only in /home/yajat/Desktop/H618-Android12-Src/system/sepolicy/prebuilts/api/31.0/public: mediatranscoding.te
+diff -r /home/yajat/Desktop/aosp12_r11/system/sepolicy/private/apexd.te /home/yajat/Desktop/H618-Android12-Src/system/sepolicy/private/apexd.te
+88a89
+> allow apexd apex_info_file:file mounton;
+diff -r /home/yajat/Desktop/aosp12_r11/system/sepolicy/private/mediatranscoding.te /home/yajat/Desktop/H618-Android12-Src/system/sepolicy/private/mediatranscoding.te
+2d1
+< type mediatranscoding, domain;
+Only in /home/yajat/Desktop/H618-Android12-Src/system/sepolicy/public: mediatranscoding.te
+Only in /home/yajat/Desktop/aosp12_r11/system/server_configurable_flags: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/teeui: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/testing/gtest_extras: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/timezone: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/aidl_const_expressions.cpp /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/aidl_const_expressions.cpp
+245,250d244
+< static bool isValidLiteralChar(char c) {
+<   return !(c <= 0x1f ||  // control characters are < 0x20
+<            c >= 0x7f ||  // DEL is 0x7f
+<            c == '\\');   // Disallow backslashes for future proofing.
+< }
+< 
+340a335,337
+>   if (name == "char") {
+>     return Character(location, "'\\0'");  // literal to be used in backends
+>   }
+357,363c354,356
+< AidlConstantValue* AidlConstantValue::Character(const AidlLocation& location, char value) {
+<   const std::string explicit_value = string("'") + value + "'";
+<   if (!isValidLiteralChar(value)) {
+<     AIDL_ERROR(location) << "Invalid character literal " << value;
+<     return new AidlConstantValue(location, Type::ERROR, explicit_value);
+<   }
+<   return new AidlConstantValue(location, Type::CHARACTER, explicit_value);
+---
+> AidlConstantValue* AidlConstantValue::Character(const AidlLocation& location,
+>                                                 const std::string& value) {
+>   return new AidlConstantValue(location, Type::CHARACTER, value);
+456,463d448
+<   for (size_t i = 0; i < value.length(); ++i) {
+<     if (!isValidLiteralChar(value[i])) {
+<       AIDL_ERROR(location) << "Found invalid character at index " << i << " in string constant '"
+<                            << value << "'";
+<       return new AidlConstantValue(location, Type::ERROR, value);
+<     }
+<   }
+< 
+1009a995,996
+> // Constructor for integer(byte, int, long)
+> // Keep parsed integer & literal
+1020a1008,1009
+> // Constructor for non-integer(String, char, boolean, float, double)
+> // Keep literal as it is. (e.g. String literal has double quotes at both ends)
+1039a1029
+> // Constructor for array
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/aidl_language.h /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/aidl_language.h
+611c611
+<     } else if constexpr (std::is_same<T, char>::value) {
+---
+>     } else if constexpr (std::is_same<T, char16_t>::value) {
+636c636
+<   static AidlConstantValue* Character(const AidlLocation& location, char value);
+---
+>   static AidlConstantValue* Character(const AidlLocation& location, const std::string& value);
+638c638
+<   static AidlConstantValue* Integral(const AidlLocation& location, const string& value);
+---
+>   static AidlConstantValue* Integral(const AidlLocation& location, const std::string& value);
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/aidl_language_l.ll /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/aidl_language_l.ll
+145,147c145,146
+< '.'                   { yylval->character = yytext[1];
+<                         return yy::parser::token::CHARVALUE;
+<                       }
+---
+> '.'                   { yylval->token = new AidlToken(yytext, comments);
+>                         return yy::parser::token::CHARVALUE; }
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/aidl_language_y.yy /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/aidl_language_y.yy
+99d98
+< %destructor { } <character>
+115c114
+< %token<character> CHARVALUE "char literal"
+---
+> %token<token> CHARVALUE "char literal"
+398c397,400
+<  | CHARVALUE { $$ = AidlConstantValue::Character(loc(@1), $1); }
+---
+>  | CHARVALUE {
+>     $$ = AidlConstantValue::Character(loc(@1), $1->GetText());
+>     delete $1;
+>   }
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/aidl_unittest.cpp /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/aidl_unittest.cpp
+34a35
+> #include "aidl_to_ndk.h"
+1028c1029
+<   EXPECT_EQ('c', Ptr(AidlConstantValue::Character(loc, 'c'))->EvaluatedValue<char>());
+---
+>   EXPECT_EQ('c', Ptr(AidlConstantValue::Character(loc, "'c'"))->EvaluatedValue<char16_t>());
+1043a1045,1052
+> }
+> 
+> TEST_F(AidlTest, AidlConstantCharacterDefault) {
+>   AidlTypeSpecifier char_type(AIDL_LOCATION_HERE, "char", false, nullptr, {});
+>   auto default_value = unique_ptr<AidlConstantValue>(AidlConstantValue::Default(char_type));
+>   EXPECT_EQ("'\\0'", default_value->ValueString(char_type, cpp::ConstantValueDecorator));
+>   EXPECT_EQ("'\\0'", default_value->ValueString(char_type, ndk::ConstantValueDecorator));
+>   EXPECT_EQ("'\\0'", default_value->ValueString(char_type, java::ConstantValueDecorator));
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/generate_cpp.cpp /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/generate_cpp.cpp
+1229a1230,1236
+>     } else if (auto type = variable->GetType().GetDefinedType(); type) {
+>       if (auto enum_type = type->AsEnumDeclaration(); enum_type) {
+>         if (!variable->GetType().IsArray()) {
+>           // if an enum doesn't have explicit default value, do zero-initialization
+>           out << " = " << cppType << "(0)";
+>         }
+>       }
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/generate_ndk.cpp /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/generate_ndk.cpp
+1048a1049,1055
+>     } else if (auto type = variable->GetType().GetDefinedType(); type) {
+>       if (auto enum_type = type->AsEnumDeclaration(); enum_type) {
+>         if (!variable->GetType().IsArray()) {
+>           // if an enum doesn't have explicit default value, do zero-initialization
+>           out << " = " << NdkNameOf(types, variable->GetType(), StorageMode::STACK) << "(0)";
+>         }
+>       }
+Only in /home/yajat/Desktop/aosp12_r11/system/tools/aidl: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/tests/golden_output/aidl-test-interface-cpp-source/gen/include/android/aidl/tests/StructuredParcelable.h /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/tests/golden_output/aidl-test-interface-cpp-source/gen/include/android/aidl/tests/StructuredParcelable.h
+49,51c49,51
+<   ::android::aidl::tests::ByteEnum shouldBeByteBar;
+<   ::android::aidl::tests::IntEnum shouldBeIntBar;
+<   ::android::aidl::tests::LongEnum shouldBeLongBar;
+---
+>   ::android::aidl::tests::ByteEnum shouldBeByteBar = ::android::aidl::tests::ByteEnum(0);
+>   ::android::aidl::tests::IntEnum shouldBeIntBar = ::android::aidl::tests::IntEnum(0);
+>   ::android::aidl::tests::LongEnum shouldBeLongBar = ::android::aidl::tests::LongEnum(0);
+83,92c83,92
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_1;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_2;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_3;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_4;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_5;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_6;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_7;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_8;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_9;
+<   ::android::aidl::tests::ConstantExpressionEnum const_exprs_10;
+---
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_1 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_2 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_3 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_4 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_5 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_6 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_7 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_8 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_9 = ::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::android::aidl::tests::ConstantExpressionEnum const_exprs_10 = ::android::aidl::tests::ConstantExpressionEnum(0);
+diff -r /home/yajat/Desktop/aosp12_r11/system/tools/aidl/tests/golden_output/aidl-test-interface-ndk_platform-source/gen/include/aidl/android/aidl/tests/StructuredParcelable.h /home/yajat/Desktop/H618-Android12-Src/system/tools/aidl/tests/golden_output/aidl-test-interface-ndk_platform-source/gen/include/aidl/android/aidl/tests/StructuredParcelable.h
+30,32c30,32
+<   ::aidl::android::aidl::tests::ByteEnum shouldBeByteBar;
+<   ::aidl::android::aidl::tests::IntEnum shouldBeIntBar;
+<   ::aidl::android::aidl::tests::LongEnum shouldBeLongBar;
+---
+>   ::aidl::android::aidl::tests::ByteEnum shouldBeByteBar = ::aidl::android::aidl::tests::ByteEnum(0);
+>   ::aidl::android::aidl::tests::IntEnum shouldBeIntBar = ::aidl::android::aidl::tests::IntEnum(0);
+>   ::aidl::android::aidl::tests::LongEnum shouldBeLongBar = ::aidl::android::aidl::tests::LongEnum(0);
+64,73c64,73
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_1;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_2;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_3;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_4;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_5;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_6;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_7;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_8;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_9;
+<   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_10;
+---
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_1 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_2 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_3 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_4 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_5 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_6 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_7 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_8 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_9 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+>   ::aidl::android::aidl::tests::ConstantExpressionEnum const_exprs_10 = ::aidl::android::aidl::tests::ConstantExpressionEnum(0);
+Only in /home/yajat/Desktop/aosp12_r11/system/tools/hidl: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/tools/mkbootimg: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/tools/sysprop: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/tools/xsdc: .git
+Only in /home/yajat/Desktop/aosp12_r11/system/unwinding: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/unwinding/libunwindstack/Android.bp /home/yajat/Desktop/H618-Android12-Src/system/unwinding/libunwindstack/Android.bp
+145a146
+>     runtime_libs: ["libdexfile"], // libdexfile_support dependency
+151a153
+>             exclude_runtime_libs: ["libdexfile"],
+156a159
+>             exclude_runtime_libs: ["libdexfile"],
+161a165
+>             exclude_runtime_libs: ["libdexfile"],
+166a171
+>             exclude_runtime_libs: ["libdexfile"],
+171a177
+>             exclude_runtime_libs: ["libdexfile"],
+diff -r /home/yajat/Desktop/aosp12_r11/system/update_engine/Android.bp /home/yajat/Desktop/H618-Android12-Src/system/update_engine/Android.bp
+365c365,368
+<     include_dirs: ["external/cros/system_api/dbus"],
+---
+>     include_dirs: [
+>         "external/cros/system_api/dbus",
+>         "bootable/recovery/otautil/",
+>     ],
+371a375,381
+>     header_libs: ["update_custom_headers"],
+> 
+>     static_libs: [
+>         "update_custom",
+>         "libotautil",
+>     ],
+> 
+389a400
+>         "custom_install_runner_action.cc",
+403c414,420
+<     static_libs: ["libupdate_engine_android"],
+---
+>     header_libs: ["update_custom_headers"],
+> 
+>     static_libs: [
+>         "libupdate_engine_android",
+>         "update_custom",
+>         "libotautil",
+>     ],
+432c449,452
+<     header_libs: ["libgtest_prod_headers"],
+---
+>     header_libs: [
+>         "libgtest_prod_headers",
+>         "update_custom_headers",
+>     ],
+445a466
+>         "custom_install_runner_action.cc",
+470a492,493
+>         "update_custom",
+>         "libotautil",
+471a495
+> 
+833a858
+>         "custom_install_runner_action_unittest.cc",
+diff -r /home/yajat/Desktop/aosp12_r11/system/update_engine/aosp/boot_control_android.cc /home/yajat/Desktop/H618-Android12-Src/system/update_engine/aosp/boot_control_android.cc
+61a62
+> 
+diff -r /home/yajat/Desktop/aosp12_r11/system/update_engine/aosp/update_attempter_android.cc /home/yajat/Desktop/H618-Android12-Src/system/update_engine/aosp/update_attempter_android.cc
+54a55
+> #include "custom_install_runner_action.h"
+508a510,511
+>     if (partition.partition_name() == "custom")
+>       continue;
+625a629,632
+> 
+>   if (type == CustomInstallRunnerAction::StaticType()) {
+>     LOG(INFO) << "Scheduling CustomInstallRunnerAction start.";
+>   }
+770a778,780
+>   auto custom_install_runner_action =
+>        std::make_unique<CustomInstallRunnerAction>();
+> 
+776a787
+>   BondActions(postinstall_runner_action.get(),custom_install_runner_action.get());
+783a795
+>   processor_->EnqueueAction(std::move(custom_install_runner_action));
+Only in /home/yajat/Desktop/H618-Android12-Src/system/update_engine: custom_install_runner_action.cc
+Only in /home/yajat/Desktop/H618-Android12-Src/system/update_engine: custom_install_runner_action.h
+Only in /home/yajat/Desktop/H618-Android12-Src/system/update_engine: custom_install_runner_action_unittest.cc
+Only in /home/yajat/Desktop/aosp12_r11/system/update_engine: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/update_engine/payload_consumer/install_plan.cc /home/yajat/Desktop/H618-Android12-Src/system/update_engine/payload_consumer/install_plan.cc
+157c157
+<       TEST_AND_RETURN_FALSE(boot_control->GetPartitionDevice(
+---
+>       result = static_cast<bool>(boot_control->GetPartitionDevice(
+164a165,173
+>       if (partition.name == "custom") {
+> #ifdef __ANDROID_RECOVERY__
+>         partition.target_path = "/tmp/custom.zip";
+> #else
+>         partition.target_path = "/data/ota_package/custom.zip";
+> #endif
+>         result = true;
+>         continue;
+>       }
+diff -r /home/yajat/Desktop/aosp12_r11/system/update_engine/payload_consumer/partition_writer.cc /home/yajat/Desktop/H618-Android12-Src/system/update_engine/payload_consumer/partition_writer.cc
+102c102
+<   if (!fd->Open(path, mode, 000)) {
+---
+>   if (!fd->Open(path, mode, (mode & O_CREAT) == O_CREAT ? 0666 : 000)) {
+293a294,295
+>   if (target_path_.find("/dev/block/") != 0)
+>     flags |= O_CREAT;
+diff -r /home/yajat/Desktop/aosp12_r11/system/update_engine/payload_generator/delta_diff_generator.cc /home/yajat/Desktop/H618-Android12-Src/system/update_engine/payload_generator/delta_diff_generator.cc
+198a199
+>       bool no_delta = config.target.partitions[i].name == "custom";
+200c201
+<           config.is_delta ? config.source.partitions[i] : empty_part;
+---
+>           (config.is_delta && !no_delta) ? config.source.partitions[i] : empty_part;
+235a237
+>       bool no_delta = config.target.partitions[i].name == "custom";
+237c239
+<           config.is_delta ? config.source.partitions[i] : empty_part;
+---
+>           (config.is_delta && !no_delta) ? config.source.partitions[i] : empty_part;
+diff -r /home/yajat/Desktop/aosp12_r11/system/update_engine/scripts/brillo_update_payload /home/yajat/Desktop/H618-Android12-Src/system/update_engine/scripts/brillo_update_payload
+526a527
+>   partitions=(${partitions[*]} "custom")
+diff -r /home/yajat/Desktop/aosp12_r11/system/vold/Android.bp /home/yajat/Desktop/H618-Android12-Src/system/vold/Android.bp
+143a144
+>         "fs/Ntfs.cpp",
+diff -r /home/yajat/Desktop/aosp12_r11/system/vold/fs/Exfat.cpp /home/yajat/Desktop/H618-Android12-Src/system/vold/fs/Exfat.cpp
+34a35
+> static const char* kMntPath = "/system/bin/mount.exfat";
+38c39
+<            IsFilesystemSupported("exfat");
+---
+>            (IsFilesystemSupported("exfat") || access(kMntPath, X_OK) == 0);
+70,71c71,84
+<     if (mount(source.c_str(), target.c_str(), "exfat", mountFlags, mountData.c_str()) == 0) {
+<         return 0;
+---
+>     if (IsFilesystemSupported("exfat")) {
+>         if (mount(source.c_str(), target.c_str(), "exfat", mountFlags, mountData.c_str()) == 0) {
+>             return 0;
+>         }
+>     } else {
+>         std::vector<std::string> cmd;
+>         cmd.push_back(kMntPath);
+>         cmd.push_back("-o");
+>         cmd.push_back(mountData);
+>         cmd.push_back(source);
+>         cmd.push_back(target);
+> 
+>         if (ForkExecvp(cmd) == 0)
+>             return 0;
+Only in /home/yajat/Desktop/H618-Android12-Src/system/vold/fs: Ntfs.cpp
+Only in /home/yajat/Desktop/H618-Android12-Src/system/vold/fs: Ntfs.h
+Only in /home/yajat/Desktop/aosp12_r11/system/vold: .git
+diff -r /home/yajat/Desktop/aosp12_r11/system/vold/model/Disk.cpp /home/yajat/Desktop/H618-Android12-Src/system/vold/model/Disk.cpp
+368,369d367
+<             foundParts = true;
+< 
+391a390
+>                         foundParts = true;
+400a400
+>                 foundParts = true;
+diff -r /home/yajat/Desktop/aosp12_r11/system/vold/model/PublicVolume.cpp /home/yajat/Desktop/H618-Android12-Src/system/vold/model/PublicVolume.cpp
+23a24
+> #include "fs/Ntfs.h"
+112a114,118
+>     } else if (mFsType == "ntfs" && ntfs::IsSupported()) {
+>         if (ntfs::Check(mDevPath)) {
+>             LOG(ERROR) << getId() << " failed filesystem check";
+>             return -EIO;
+>         }
+154a161,165
+>     } else if (mFsType == "ntfs") {
+>         if (ntfs::Mount(mDevPath, mRawPath, AID_MEDIA_RW, AID_MEDIA_RW, 0007)) {
+>             PLOG(ERROR) << getId() << " failed to mount " << mDevPath;
+>             return -EIO;
+>         }
+312a324
+>     bool useNtfs = ntfs::IsSupported();
+332a345
+>         useNtfs = false;
+334a348,351
+>         useNtfs = false;
+>     } else if (fsType == "ntfs") {
+>         useExfat = false;
+>         useVfat = false;
+337c354
+<     if (!useVfat && !useExfat) {
+---
+>     if (!useVfat && !useExfat && !useNtfs) {
+349a367,368
+>     } else if (useNtfs) {
+>         res = ntfs::Format(mDevPath);
