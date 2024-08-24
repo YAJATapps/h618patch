@@ -16,5 +16,5 @@ device/softwinner/
 longan/  
 vendor/  
 
-**Note:** This changes were not intended to be applied on any random aosp version with patch. Its there to identify the main changes that were required to boot on this device.  
+**Note:** These changes were not intended to be applied on any random aosp version with patch. Its purpose is to identify the main changes that were required to boot on this device.  
 Example: The fs_mgr, vold etc.
